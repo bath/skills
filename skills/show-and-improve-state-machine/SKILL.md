@@ -47,7 +47,7 @@ The checks, in the order they print:
 | `ends-closed` | a declared end has a transition out of it |
 | `exit` | a state that is not an end has no transition out |
 | `can-end` | a reachable state can no longer reach any end. A dead end counts, and so does a group of states that only lead to each other |
-| `waits-owned` | a wait has no owner, or it has neither a timeout edge that reaches an end nor a written reason to be open-ended. A wait is a reachable state that only a person or an outside party can move |
+| `waits-owned` | a wait has neither a timeout edge that reaches an end nor a written reason to be open-ended, or it has no owner and no such timeout. A wait is a reachable state that only a person or an outside party can move. A wait with no owner that a clock ends in an end is a note |
 | `loops-bounded` | a loop that avoids every end has no edge with a `bound` |
 
 `loops-bounded` prints one finding per region of states that loop among themselves, with one example cycle. A region can hold more cycles than the example, so run the checker again after each bound. Read every failure before you fix any. One missing edge often explains three findings.

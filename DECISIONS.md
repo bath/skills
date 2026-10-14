@@ -124,3 +124,11 @@ Two alternatives were rejected. Keeping the page in prose, because the owner saw
 The four-findings threshold is gone. Every run ends with `report`. An interactive run writes the page to a temp directory, opens it and says the path. A worker run writes it to the caller's folder. The chat message is the path and one line per failing path. The owner saw the page and reads it before the terminal, so a threshold only decided when to withhold the thing he wanted.
 
 The judgement file gained one optional field, `waits`, a map of state name to what the reader sees in that state. Given, the waits table shows a "What the reader sees" column. The table cannot carry it. What a reader sees is a reading of the view, not a fact of the graph.
+
+## A clock that ends the wait covers a missing owner (2026-10-14)
+
+Two test runs had to overrule the checker on the same point. A wait that nobody is told about, but that a timeout takes to an end, failed `waits-owned` for "no owner". The runs marked those states low severity by hand, because the path has a known end. Now such a wait passes, with a note that says nobody is told and which clock ends it. A missing owner fails only when no clock reaches an end from the state.
+
+The reason for the rule is what the owner is for. The owner is the person who ends a wait that would otherwise last. When a clock ends it, there is no such person to name. The note stays, because a reader may still want someone told before the clock runs out.
+
+The alternative was to keep the failure and let the agent mark the state open-ended. That puts a false reason in the table, since the wait is not open-ended at all.

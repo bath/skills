@@ -25,7 +25,7 @@ For a session that cannot run `scripts/every_path.py`, because there is no inter
 
 A state waits when it has at least one mover and every mover's actor is `human` or `external`. For each wait:
 
-- Owner. The state's `owner` when the key is present, where `null` means nobody. Otherwise the `human` movers, joined. Otherwise none, and the finding says `no owner`.
+- Owner. The state's `owner` when the key is present, where `null` means nobody. Otherwise the `human` movers, joined. Otherwise none. No owner and a timeout that reaches an end gives a note, `unowned: S waits on A (kind) with no owner, but e ends it after T`. No owner and no such timeout makes the finding say `no owner`.
 - Timeout. An exit with `timeout` whose target is in the ends-reach set. When there is none and the state has `open_ended`, write a note instead: `open-ended: S waits on A (kind) with no timeout because <reason>`. When there is none but some timeout exits exist, the finding says `no timeout that reaches an end, because e leads to T and no end follows from there`. When there is none at all, it says `no timeout`.
 - The line: `S waits on a (kind), b (kind) and has <what is missing, joined with " and ">`, then its path.
 - A state that does not wait, whose `system` movers all carry a guard, gets a note: `guarded: the system moves S on only under a guard, e [guard] or f [guard]. If a guard needs an outside party to act, that party is the actor and the state is a wait`.

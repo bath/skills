@@ -128,6 +128,59 @@ class NoPassLineIsFalse(unittest.TestCase):
                       "or a written reason to be open-ended", out)
 
 
+class SeveralInitialStates(unittest.TestCase):
+    def test_a_path_starts_at_the_initial_state_it_comes_from(self):
+        flow = [
+            ("new", "assign", "working", "system"),
+            ("working", "resolve", "resolved", "agent"),
+            ("working", "stale_30d", "resolved", "system", {"timeout": "30d"}),
+            ("imported", "review", "working", "reviewer"),
+        ]
+        data = table(flow, initial="new", ends=("resolved",))
+        data["initial"] = ["new", "imported"]
+        data["actors"]["reviewer"] = "external"
+        code, out = check(data)
+        self.assertEqual(code, 1, out)
+        self.assertIn("imported waits on reviewer (external) and has no owner and no timeout\n    path: (start) imported", out)
+        self.assertNotIn("(start) new\n", out.split("imported waits")[1])
+
+
+class TrapRegions(unittest.TestCase):
+    def test_two_unrelated_dead_ends_are_two_findings_that_do_not_name_each_other(self):
+        flow = [
+            ("placed", "pay", "paid", "customer"),
+            ("paid", "deliver", "delivered", "carrier"),
+            ("placed", "cancel", "cancelled", "customer"),
+            ("paid", "lose", "lost", "carrier"),
+        ]
+        code, out = check(table(flow))
+        self.assertIn("cancelled can be reached but no end can be reached from it. It has no way out.", out)
+        self.assertIn("lost can be reached but no end can be reached from it. It has no way out.", out)
+        self.assertNotIn("trapped with", out)
+
+    def test_states_that_only_lead_to_each_other_are_one_region(self):
+        flow = [
+            ("filed", "start", "in_review", "agent"),
+            ("in_review", "approve", "merged", "system"),
+            ("in_review", "refuse", "refused", "system"),
+            ("refused", "re_review", "refused_again", "system"),
+            ("refused_again", "refuse", "refused", "system"),
+        ]
+        code, out = check(table(flow, initial="filed", ends=("merged",)))
+        self.assertIn("refused can be reached but no end can be reached from it. It loops within {refused, refused_again} and no end follows.", out)
+
+    def test_a_state_whose_every_way_out_is_trapped_names_what_follows(self):
+        flow = [
+            ("filed", "start", "checking", "system"),
+            ("checking", "pass", "done", "system"),
+            ("checking", "fail", "failed", "system"),
+            ("failed", "notify", "notified", "system"),
+        ]
+        code, out = check(table(flow, initial="filed", ends=("done",)))
+        self.assertIn("failed can be reached but no end can be reached from it. Everything after it is trapped too: {notified}.", out)
+        self.assertIn("notified can be reached but no end can be reached from it. It has no way out.", out)
+
+
 class ReachabilityChecks(unittest.TestCase):
     def test_a_state_nothing_leads_to_is_an_orphan(self):
         code, out = check(table([
@@ -351,11 +404,32 @@ class OwnerDeclaredNull(unittest.TestCase):
         flow = [
             ("new", "assign", "working", "system"),
             ("working", "resolve", "resolved", "agent"),
-            ("working", "stale_30d", "resolved", "system", {"timeout": "30d"}),
         ]
         code, out = check(table(flow, initial="new", ends=("resolved",), states={"working": {"owner": None}}))
         self.assertEqual(code, 1, out)
-        self.assertIn("working waits on agent (human) and has no owner", out)
+        self.assertIn("working waits on agent (human) and has no owner and no timeout", out)
+
+
+class TimeoutCoversAMissingOwner(unittest.TestCase):
+    """A clock that ends the wait in an end makes a missing owner a note, not a failure."""
+
+    FLOW = [
+        ("new", "send", "unconfirmed", "system"),
+        ("unconfirmed", "confirm", "confirmed", "person"),
+        ("unconfirmed", "link_expires_14d", "expired", "system", {"timeout": "14d"}),
+    ]
+
+    def test_an_unowned_wait_with_a_timeout_that_reaches_an_end_passes_with_a_note(self):
+        code, out = check(table(self.FLOW, initial="new", ends=("confirmed", "expired")))
+        self.assertEqual(code, 0, out)
+        self.assertIn("PASS waits-owned", out)
+        self.assertIn("note unowned: unconfirmed waits on person (external) with no owner, but link_expires_14d ends it after 14d", out)
+
+    def test_a_timeout_into_a_trap_does_not_cover_the_missing_owner(self):
+        flow = self.FLOW + [("expired", "archive", "archived", "system")]  # archived has no exit and is not an end
+        code, out = check(table(flow, initial="new", ends=("confirmed",)))
+        self.assertEqual(code, 1, out)
+        self.assertIn("unconfirmed waits on person (external) and has no owner and no timeout that reaches an end", out)
 
 
 class GuardedSystemExit(unittest.TestCase):

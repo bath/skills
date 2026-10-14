@@ -272,10 +272,16 @@ def check_waits_owned(table: Table, paths: Dict[str, List[Edge]]) -> Result:
         movers = [edge for edge in table.out[state] if not edge.timeout]
         waits_on = ", ".join(f"{actor} ({table.actors[actor]})" for actor in sorted({e.actor for e in movers}))
         missing = []
-        if wait_owner(table, state) is None:
-            missing.append("no owner")
+        unowned = wait_owner(table, state) is None
         timeouts = [edge for edge in table.out[state] if edge.timeout]
-        if not any(edge.target in good for edge in timeouts):
+        live = [edge for edge in timeouts if edge.target in good]
+        if unowned and live:
+            # Nobody is told, but a clock ends the wait in an end, so nobody has to be.
+            ends_it = " or ".join(f"{e.event} ends it after {e.timeout}" for e in live)
+            notes.append(f"unowned: {state} waits on {waits_on} with no owner, but {ends_it}")
+        elif unowned:
+            missing.append("no owner")
+        if not live:
             if info.get("open_ended"):
                 label, reason = open_ended_text(info).split(": ", 1)
                 notes.append(f"{label}: {state} waits on {waits_on} with no timeout because {reason}")
