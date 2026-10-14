@@ -63,6 +63,8 @@ Two cases that look like `system` and are not:
 - A `system` edge whose guard can only become true by an outside action (`refuse` when "the check reported red") is that outside party's edge. The code runs every cycle, but it gives the same answer until the party acts, so the state waits on the party. The checker prints a `guarded:` note on a state the system leaves only under guards, so you can look again.
 - The actor's own process dying (a session that exits before it reports, a worker that crashes) is the actor's event, with the actor's kind. Nothing can rely on a crash, so the state stays a wait.
 
+Another instance of the same process (a second order that must ship first, a later merge that carries this one's commit) is an actor of kind `external`, named for what it is (`later_merge`). The wait it ends is owned by whoever owns that other instance; write that person in `owner`, since the checker cannot see across instances. When the order or timing between instances is the question itself, the single-instance table is at its limit, and a model checker is the next tool.
+
 An automated agent on a timer (a patrol, a bot session with a recipe) is `human` when it has to decide what to do, and `system` only when its step is mechanical and tested. Its waits need the same owner and timeout as a person's.
 
 ## Evidence
