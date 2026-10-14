@@ -60,3 +60,21 @@ Terminal Markdown is the default because the common case is one to three paths a
 - Licence of the published skill. Nothing in the repo carries one yet.
 - Publish target (personal GitHub or a company skills repo) and how skills.sh lists it. Not verified.
 - Whether the skill is model-invoked (it has a description, so it is) or user-invoked. The description costs context every turn; if it misfires, set `disable-model-invocation: true` and strip the trigger list.
+
+## Added after the first dogfood run (2026-10-14)
+
+### A loop finding is one per region, with its closing edges
+
+The first checker printed the first cycle it found, one per run; the dogfood table had 29. Now `loops-bounded` prints one finding per strongly connected region of non-end states (after bounded edges are removed), with one example cycle and the list of edges a depth-first walk finds pointing back into the region. A bound on each closing edge breaks every loop in the region; the agent groups them by meaning.
+
+Alternative: enumerate every elementary cycle. Exact, exponential in the worst case, and the dogfood table shows why not: the same re-sling edge would appear in most of the 29.
+
+### `"owner": null` says that nobody is told
+
+A human mover used to be taken as the owner of a wait without question. The dogfood found a state (a pull request whose check never completes) where the person who could act is never told it is stuck. Now `owner` means the person the code tells, a human mover is still the default, and an explicit `null` records that nobody is told, which fails the check.
+
+Alternative: require a declared owner on every wait. Honest, but it makes the agent repeat the actor on every human step.
+
+### The checker notes a state the system leaves only under guards
+
+A `system` edge with a guard that only an outside party can satisfy hides a wait. The checker cannot read the guard, so it prints a `guarded:` note for every state whose system exits are all guarded, and the extraction reference says how to re-attribute the edge. A warning that fails the run was the alternative; too many honest system edges carry a guard.
