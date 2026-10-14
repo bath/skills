@@ -39,12 +39,12 @@ It prints PASS or FAIL for each property and, for each failure, a count line, th
 
 | Check | Fails when |
 |---|---|
-| `reachable` | a state has no path from the start |
+| `reachable` | a state that is not an end has no path from the start |
 | `ends-reachable` | a declared end has no path from the start |
 | `ends-closed` | a declared end has a transition out of it |
 | `exit` | a state that is not an end has no transition out |
-| `can-end` | a reachable state can no longer reach any end (a trap of one or more states) |
-| `waits-owned` | a state only a person or an outside party can move has no owner, or no timeout edge |
+| `can-end` | a reachable state can no longer reach any end (a trap of one or more states, a dead end included) |
+| `waits-owned` | a reachable state only a person or an outside party can move has no owner, or no timeout edge that reaches an end, and no written reason to be open-ended |
 | `loops-bounded` | a loop that avoids every end has no edge with a `bound` |
 
 `loops-bounded` prints one finding per region of states that loop among themselves, with one example cycle; a region can hold more cycles than the example, so run again after each bound. Read every failure before you fix any. One missing edge often explains three findings.

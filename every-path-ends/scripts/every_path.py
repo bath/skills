@@ -172,7 +172,7 @@ def check_exit(table: Table, paths: Dict[str, List[Edge]]) -> Result:
 def check_reachable(table: Table, paths: Dict[str, List[Edge]]) -> Result:
     findings = [Finding(s, f"{s} cannot be reached from the start; nothing leads to it", None)
                 for s in table.states if s not in paths and not table.is_end(s)]
-    return Result("reachable", "every state can be reached from the start", findings)
+    return Result("reachable", "every state that is not an end can be reached from the start", findings)
 
 
 def check_ends_reachable(table: Table, paths: Dict[str, List[Edge]]) -> Result:
@@ -209,9 +209,11 @@ def check_can_end(table: Table, paths: Dict[str, List[Edge]]) -> Result:
     good = can_reach_end(table)
     findings = []
     for state in table.states:
-        if state in good or state not in paths or not table.out[state]:
-            continue  # a state with no exit is the exit check's finding, not a trap
-        region = sorted(s for s in table.states if s not in good and s in paths and table.out[s])
+        if state in good or state not in paths:
+            continue
+        # A state with no exit is also the exit check's finding; it is listed here too, so that a
+        # PASS on this check means no reachable state is trapped, exits or not.
+        region = sorted(s for s in table.states if s not in good and s in paths)
         findings.append(Finding(state, f"{state} can be reached but no end can be reached from it; "
                                        f"it is trapped with {{{', '.join(region)}}}", paths[state]))
     return Result("can-end", "from every reachable state some end is still reachable", findings)
@@ -283,7 +285,8 @@ def check_waits_owned(table: Table, paths: Dict[str, List[Edge]]) -> Result:
     no_owner = sum(1 for f in findings if "no owner" in f.detail)
     no_timeout = sum(1 for f in findings if "no timeout" in f.detail)
     summary = f"{len(findings)} waits: {no_owner} with no owner, {no_timeout} with no timeout"
-    return Result("waits-owned", "every wait names who ends it and has a timeout out of it", findings, notes, summary)
+    return Result("waits-owned", "every reachable wait has an owner and a timeout that reaches an end, "
+                  "or a written reason to be open-ended", findings, notes, summary)
 
 
 def strongly_connected(table: Table, nodes: List[str], edges: List[Edge]) -> List[List[str]]:

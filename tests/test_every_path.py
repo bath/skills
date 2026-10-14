@@ -98,6 +98,36 @@ class TrapCheck(unittest.TestCase):
         self.assertIn("PASS can-end", out)
 
 
+class NoPassLineIsFalse(unittest.TestCase):
+    """Each PASS sentence must be true of the whole table, not only of the states the check walked."""
+
+    def test_a_dead_end_is_a_trap_under_can_end_as_well_as_exit(self):
+        code, out = check(table([
+            ("placed", "pay", "paid", "customer"),
+            ("paid", "deliver", "delivered", "carrier"),
+            ("placed", "cancel", "cancelled", "customer"),
+        ]))
+        self.assertIn("FAIL exit", out)
+        self.assertIn("FAIL can-end", out)
+        self.assertIn("cancelled can be reached but no end can be reached from it", out)
+        self.assertNotIn("PASS can-end", out)
+
+    def test_the_reachable_sentence_says_it_leaves_the_ends_to_ends_reachable(self):
+        code, out = check(table([
+            ("placed", "pay", "paid", "customer"),
+            ("paid", "deliver", "delivered", "carrier"),
+        ], ends=("delivered", "refunded")))
+        self.assertIn("PASS reachable: every state that is not an end can be reached from the start", out)
+        self.assertIn("FAIL ends-reachable", out)
+
+    def test_the_waits_sentence_admits_open_ended_waits(self):
+        flow = [("new", "assign", "working", "system"), ("working", "resolve", "resolved", "agent")]
+        code, out = check(table(flow, initial="new", ends=("resolved",),
+                                states={"working": {"open_ended": "reviewed each morning"}}))
+        self.assertIn("PASS waits-owned: every reachable wait has an owner and a timeout that reaches an end, "
+                      "or a written reason to be open-ended", out)
+
+
 class ReachabilityChecks(unittest.TestCase):
     def test_a_state_nothing_leads_to_is_an_orphan(self):
         code, out = check(table([
@@ -384,12 +414,12 @@ class SummaryLines(unittest.TestCase):
             ("parked", "unpark", "working", "agent", {"bound": "parks < 2"}),
         ]
         code, out = check(table(flow, initial="new", ends=("resolved",)))
-        self.assertIn("FAIL waits-owned: every wait names who ends it and has a timeout out of it\n"
-                      "  2 waits: 1 with no owner, 2 with no timeout\n", out)
+        self.assertIn("FAIL waits-owned: every reachable wait has an owner and a timeout that reaches an end, "
+                      "or a written reason to be open-ended\n  2 waits: 1 with no owner, 2 with no timeout\n", out)
 
     def test_a_passed_check_has_no_count_line(self):
         code, out = check(table([("a", "go", "b", "system")], initial="a", ends=("b",)))
-        self.assertIn("PASS waits-owned: every wait names who ends it and has a timeout out of it\nPASS loops-bounded", out)
+        self.assertIn("or a written reason to be open-ended\nPASS loops-bounded", out)
 
 
 class OpenEndedWithEvidence(unittest.TestCase):

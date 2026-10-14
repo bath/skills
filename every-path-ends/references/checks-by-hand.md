@@ -17,7 +17,7 @@ For a session that cannot run `scripts/every_path.py` (no interpreter, a denied 
 | `ends-reachable` | the forward walk | all | `end state S cannot be reached from the start; nothing leads to it` |
 | `ends-closed` | each end's rows | all | `end state S has a way out: S --e--> T; an end that exits is not an end` |
 | `exit` | each non-end state's rows | all | `S is not an end state and has no transition out of it`, with its path |
-| `can-end` | the ends-reach set | all | `S can be reached but no end can be reached from it; it is trapped with {the other such states}`, for each reachable non-end state with at least one exit that is not in the set |
+| `can-end` | the ends-reach set | all | `S can be reached but no end can be reached from it; it is trapped with {the other such states}`, for each reachable non-end state that is not in the set, a dead end included (it is then also an `exit` finding) |
 | `waits-owned` | each reachable non-end state | movers are the exits with no `timeout` | see below |
 | `loops-bounded` | the non-end states with the rows that carry no `bound` | rows between non-end states only | see below |
 

@@ -96,3 +96,11 @@ Alternative: a top-level `evidence_kind` on every row. Heavier, and the row's `e
 ### Hand checks are a reference file, not a mode of the script
 
 A session that cannot run the script applies `references/checks-by-hand.md` and marks the output hand-checked. The file mirrors the script's walks and line shapes, so a hand result and a machine result can be diffed. The alternative, a JavaScript port for sessions with Node and no Python, was not taken: the second run's problem was a denied command, not a missing interpreter.
+
+### A PASS sentence is true of the whole table
+
+`can-end` used to skip a state with no exit, because `exit` already named it, and then print "from every reachable state some end is still reachable" while a dead end sat in the table. Now `can-end` lists every reachable state that cannot reach an end, exits or not, and a dead end appears under both checks. One duplicated line is the price of a PASS that means "nothing is trapped".
+
+The audit of the other six sentences changed two: `reachable` now says "every state that is not an end", because an orphan end is `ends-reachable`'s finding; `waits-owned` now says "every reachable wait ... or a written reason to be open-ended", because an unreachable wait is `reachable`'s and an excused wait is a note. `ends-reachable`, `ends-closed`, `exit` and `loops-bounded` test what they say.
+
+Alternative for `can-end`: keep the skip and weaken the sentence to "every reachable state that has a way out". Rejected: a reader then needs two lines to know whether anything is trapped, and the first dogfood run showed that one green line is what gets read.
