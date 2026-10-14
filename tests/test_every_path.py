@@ -213,5 +213,62 @@ class LoopCheck(unittest.TestCase):
         self.assertIn("refused --retry--> refused", out)
 
 
+class Diagram(unittest.TestCase):
+    FLOW = [
+        ("placed", "pay", "paid", "customer"),
+        ("placed", "unpaid_24h", "cancelled", "system", {"timeout": "24h"}),
+        ("paid", "ship", "shipped", "system"),
+        ("shipped", "deliver", "delivered", "carrier", {"evidence": "src/orders.ts:42"}),
+        ("shipped", "lose", "lost", "carrier"),
+    ]
+
+    def test_the_diagram_is_mermaid_drawn_from_the_same_table(self):
+        code, out = run("diagram", table(self.FLOW, ends=("delivered", "cancelled")))
+        self.assertEqual(code, 0, out)
+        self.assertIn("stateDiagram-v2", out)
+        self.assertIn("[*] --> placed", out)
+        self.assertIn("delivered --> [*]", out)
+        self.assertIn("placed --> paid : pay / customer", out)
+        self.assertIn("placed --> cancelled : unpaid_24h / system, after 24h", out)
+
+    def test_failing_states_are_marked_in_the_diagram(self):
+        code, out = run("diagram", table(self.FLOW, ends=("delivered", "cancelled")))
+        self.assertIn("class lost trap", out)       # no exit, no end
+        self.assertIn("class shipped wait", out)    # waits on the carrier with no owner or timeout
+        self.assertNotIn("class paid", out)
+
+    def test_a_state_name_with_a_space_still_renders(self):
+        flow = [("new", "start", "in review", "agent"), ("in review", "ok", "done", "system")]
+        code, out = run("diagram", table(flow, initial="new", ends=("done",)))
+        self.assertEqual(code, 0, out)
+        self.assertIn('state "in review" as in_review', out)
+        self.assertIn("new --> in_review : start / agent", out)
+
+
+class MarkdownTable(unittest.TestCase):
+    def test_the_table_lists_each_transition_with_its_evidence(self):
+        code, out = run("table", table(Diagram.FLOW, ends=("delivered", "cancelled")))
+        self.assertEqual(code, 0, out)
+        self.assertIn("| From | Event | To | Actor | Guard | Timeout | Bound | Evidence |", out)
+        self.assertIn("| shipped | deliver | delivered | carrier |  |  |  | src/orders.ts:42 |", out)
+        self.assertIn("| placed | unpaid_24h | cancelled | system |  | 24h |  |  |", out)
+
+
+class JsonResult(unittest.TestCase):
+    def test_check_can_print_its_findings_as_json(self):
+        data = table(Diagram.FLOW, ends=("delivered", "cancelled"))
+        with tempfile.NamedTemporaryFile("w", suffix=".json", delete=False) as handle:
+            json.dump(data, handle)
+        done = subprocess.run([sys.executable, "-I", SCRIPT, "check", handle.name, "--json"], capture_output=True, text=True)
+        os.unlink(handle.name)
+        self.assertEqual(done.returncode, 1, done.stderr)
+        result = json.loads(done.stdout)
+        by_name = {r["check"]: r for r in result["results"]}
+        self.assertFalse(by_name["exit"]["passed"])
+        finding = by_name["exit"]["findings"][0]
+        self.assertEqual(finding["state"], "lost")
+        self.assertEqual([e["on"] for e in finding["path"]], ["pay", "ship", "lose"])
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -313,6 +313,101 @@ def report(table: Table, results: List[Result]) -> str:
     return "\n".join(lines)
 
 
+def edge_json(edge: Edge) -> dict:
+    return {"from": edge.source, "on": edge.event, "to": edge.target, "actor": edge.actor,
+            "guard": edge.guard, "timeout": edge.timeout, "bound": edge.bound, "evidence": edge.evidence}
+
+
+def results_json(table: Table, results: List[Result]) -> dict:
+    return {
+        "name": table.name,
+        "passed": all(r.passed for r in results),
+        "results": [{
+            "check": r.check, "title": r.title, "passed": r.passed, "notes": r.notes,
+            "findings": [{"state": f.state, "detail": f.detail,
+                          "path": None if f.path is None else [edge_json(e) for e in f.path]} for f in r.findings],
+        } for r in results],
+    }
+
+
+# ---------------------------------------------------------------- diagram and table
+
+# How a failing state is drawn: the check that found it, and the class that colours it.
+MARKS = [("exit", "trap"), ("can-end", "trap"), ("waits-owned", "wait"), ("loops-bounded", "loop"), ("reachable", "orphan"), ("ends-closed", "leak")]
+STYLES = {
+    "trap": "fill:#f8d7da,stroke:#b02a37,color:#000",
+    "wait": "fill:#fff3cd,stroke:#997404,color:#000",
+    "loop": "fill:#e2d9f3,stroke:#59359a,color:#000",
+    "orphan": "fill:#e9ecef,stroke:#6c757d,color:#000,stroke-dasharray: 4 4",
+    "leak": "fill:#cfe2ff,stroke:#084298,color:#000",
+}
+
+
+def mermaid_id(name: str) -> str:
+    cleaned = "".join(ch if ch.isalnum() or ch == "_" else "_" for ch in name)
+    return cleaned if cleaned and not cleaned[0].isdigit() else f"s_{cleaned}"
+
+
+def diagram(table: Table, results: List[Result]) -> str:
+    lines = ["stateDiagram-v2"]
+    ids = {name: mermaid_id(name) for name in table.states}
+    for name, ident in ids.items():
+        if ident != name:
+            lines.append(f'    state "{name}" as {ident}')
+    for initial in table.initials:
+        lines.append(f"    [*] --> {ids[initial]}")
+    for edge in table.edges:
+        label = f"{edge.event} / {edge.actor}"
+        if edge.timeout:
+            label += f", after {edge.timeout}"
+        if edge.guard:
+            label += f" [{edge.guard}]"
+        if edge.bound:
+            label += f" ({edge.bound})"
+        lines.append(f"    {ids[edge.source]} --> {ids[edge.target]} : {label}")
+    for end in table.ends:
+        lines.append(f"    {ids[end]} --> [*]")
+    marked: Dict[str, str] = {}
+    by_check = {r.check: r for r in results}
+    for check, style in MARKS:
+        for finding in by_check[check].findings:
+            marked.setdefault(finding.state, style)
+    if marked:
+        lines.append("")
+        for style in sorted(set(marked.values())):
+            lines.append(f"    classDef {style} {STYLES[style]}")
+        for name, style in marked.items():
+            lines.append(f"    class {ids[name]} {style}")
+        legend = {"trap": "red: no end can follow", "wait": "amber: a wait with no owner or no timeout",
+                  "loop": "purple: starts a loop nothing bounds", "orphan": "grey: nothing leads here", "leak": "blue: an end with a way out"}
+        lines.append("    %% " + "; ".join(legend[s] for s in sorted(set(marked.values()))))
+    return "\n".join(lines)
+
+
+def markdown_table(table: Table) -> str:
+    def cell(value) -> str:
+        if value is None:
+            return ""
+        if isinstance(value, list):
+            return "; ".join(value)
+        return str(value).replace("|", "\\|")
+    lines = [f"**{table.name}**: starts in {', '.join(table.initials)}; ends in {', '.join(table.ends)}.", "",
+             "| From | Event | To | Actor | Guard | Timeout | Bound | Evidence |", "|---|---|---|---|---|---|---|---|"]
+    for edge in table.edges:
+        lines.append("| " + " | ".join(cell(v) for v in (edge.source, edge.event, edge.target, edge.actor, edge.guard,
+                                                        edge.timeout, edge.bound, edge.evidence)) + " |")
+    waits = [s for s in table.states if is_waiting(table, s)]
+    if waits:
+        lines += ["", "| Wait | Owner | Timeout |", "|---|---|---|"]
+        for state in waits:
+            timeouts = ", ".join(f"{e.event} after {e.timeout}" for e in table.out[state] if e.timeout)
+            info = table.state_info.get(state, {})
+            if not timeouts and info.get("open_ended"):
+                timeouts = f"open-ended: {info['open_ended']}"
+            lines.append(f"| {state} | {cell(wait_owner(table, state))} | {cell(timeouts)} |")
+    return "\n".join(lines)
+
+
 # ---------------------------------------------------------------- cli
 
 def load(path: str) -> Table:
@@ -321,6 +416,8 @@ def load(path: str) -> Table:
 
 
 def main(argv: List[str]) -> int:
+    as_json = "--json" in argv
+    argv = [a for a in argv if a != "--json"]
     if len(argv) != 2 or argv[0] not in ("check", "diagram", "table"):
         print(__doc__.strip(), file=sys.stderr)
         return 2
@@ -330,12 +427,15 @@ def main(argv: List[str]) -> int:
     except (TableError, json.JSONDecodeError, OSError) as error:
         print(f"cannot read {path}: {error}", file=sys.stderr)
         return 2
+    results = run_checks(table)
     if subcommand == "check":
-        results = run_checks(table)
-        print(report(table, results))
+        print(json.dumps(results_json(table, results), indent=2) if as_json else report(table, results))
         return 0 if all(r.passed for r in results) else 1
-    print("not built yet", file=sys.stderr)
-    return 2
+    if subcommand == "diagram":
+        print(diagram(table, results))
+    else:
+        print(markdown_table(table))
+    return 0
 
 
 if __name__ == "__main__":
