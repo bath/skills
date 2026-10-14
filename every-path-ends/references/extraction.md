@@ -12,6 +12,14 @@ Look in this order and keep going until nothing new appears:
 4. **The documents.** A spec, a runbook, a glossary, an incident report. A document can name a state the code never writes (then it is an orphan) or a transition the code never makes (then the document is wrong or the code is). Cite the document the same way as code.
 5. **The last ten incidents.** An incident is a path that did not end. Read it as a test case for the table: can the table express what happened?
 
+## A view of a lifecycle is its own lifecycle
+
+The thing you model may be a rendering of the object rather than the object: a card in a chat, a row on a dashboard, a badge in a list. Model the view when the question is about the view ("which cards never reach a final line"). Then:
+
+- The view's states are what it draws, not the object's fields. Fold the object's states the view draws nothing for into one, and say so in the `note`. Add the states only the view has (a message that failed to send, a watch that expired).
+- The view's ends are where the view stops changing, which can differ from the object's ends. An object can end while its view still waits, and a view can end (an expiry) while the object goes on. Declare the view's ends, and name in `note` which object states they correspond to.
+- Keep one table per thing. A view and its object are two tables, with a line in each `note` that maps the state to the other.
+
 ## The state is often composite
 
 A real system rarely keeps its state in one column. The state of a piece of work can be `status` plus a label plus whether a commit hash is set plus the outcome of its last run plus the last event in a log. Treat the tuple as the state and give each distinct tuple a name.
