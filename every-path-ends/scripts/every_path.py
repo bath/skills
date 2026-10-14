@@ -151,7 +151,55 @@ def check_exit(table: Table, paths: Dict[str, List[Edge]]) -> Result:
     return Result("exit", "every state that is not an end has a way out", findings)
 
 
-CHECKS = [check_exit]
+def check_reachable(table: Table, paths: Dict[str, List[Edge]]) -> Result:
+    findings = [Finding(s, f"{s} cannot be reached from the start; nothing leads to it", None)
+                for s in table.states if s not in paths and not table.is_end(s)]
+    return Result("reachable", "every state can be reached from the start", findings)
+
+
+def check_ends_reachable(table: Table, paths: Dict[str, List[Edge]]) -> Result:
+    findings = [Finding(s, f"end state {s} cannot be reached from the start; nothing leads to it", None)
+                for s in table.ends if s not in paths]
+    return Result("ends-reachable", "every declared end can be reached from the start", findings)
+
+
+def check_ends_closed(table: Table, paths: Dict[str, List[Edge]]) -> Result:
+    findings = []
+    for state in table.ends:
+        for edge in table.out[state]:
+            findings.append(Finding(state, f"end state {state} has a way out: {edge}; an end that exits is not an end", paths.get(state)))
+    return Result("ends-closed", "no declared end has a transition out of it", findings)
+
+
+def can_reach_end(table: Table) -> set:
+    """The states from which some end is still reachable (walk the edges backwards from the ends)."""
+    into: Dict[str, List[str]] = {s: [] for s in table.states}
+    for edge in table.edges:
+        into[edge.target].append(edge.source)
+    seen = set(table.ends)
+    queue = deque(table.ends)
+    while queue:
+        state = queue.popleft()
+        for source in into[state]:
+            if source not in seen:
+                seen.add(source)
+                queue.append(source)
+    return seen
+
+
+def check_can_end(table: Table, paths: Dict[str, List[Edge]]) -> Result:
+    good = can_reach_end(table)
+    findings = []
+    for state in table.states:
+        if state in good or state not in paths or not table.out[state]:
+            continue  # a state with no exit is the exit check's finding, not a trap
+        region = sorted(s for s in table.states if s not in good and s in paths and table.out[s])
+        findings.append(Finding(state, f"{state} can be reached but no end can be reached from it; "
+                                       f"it is trapped with {{{', '.join(region)}}}", paths[state]))
+    return Result("can-end", "from every reachable state some end is still reachable", findings)
+
+
+CHECKS = [check_reachable, check_ends_reachable, check_ends_closed, check_exit, check_can_end]
 
 
 def run_checks(table: Table) -> List[Result]:
