@@ -2,7 +2,7 @@
 
 The agent that built the first version wrote this on 2026-10-14. Each entry gives the default it picked, the alternatives, and what reversing it costs. None of these is settled until the owner says so.
 
-## Name: `every-path-ends` (superseded, see below)
+## Name: `every-path-ends`, superseded below
 
 The skill's name is the property it proves, so a user who types it knows what they asked for, and the phrase appears in the report's last line, "every path ends".
 
@@ -51,7 +51,7 @@ A cycle that still exists after the bounded edges are removed is a loop nothing 
 
 The alternative was to enumerate every elementary cycle. Exact but exponential, and the output would repeat the same bound across many cycles.
 
-## Report: terminal first, HTML at four or more findings (superseded, see below)
+## Report: terminal first, HTML at four or more findings, superseded below
 
 Terminal Markdown was the default because the common case is one to three paths and a diagram. The HTML page was only written at four or more findings. Reversed on 2026-10-14. The page is written on every run.
 
@@ -61,7 +61,7 @@ Terminal Markdown was the default because the common case is one to three paths 
 - The publish target, a personal GitHub or a company skills repo, and how skills.sh lists it. Not verified.
 - Whether the skill is model-invoked or user-invoked. It has a description, so it is model-invoked. The description costs context every turn. If it misfires, set `disable-model-invocation: true` and strip the trigger list.
 
-## Added after the first dogfood run (2026-10-14)
+## Added after the first dogfood run, 2026-10-14
 
 ### A loop finding is one per region, with its closing edges
 
@@ -79,7 +79,7 @@ The alternative was to require a declared owner on every wait. Honest, but it ma
 
 A `system` edge with a guard that only an outside party can satisfy hides a wait. The checker cannot read the guard, so it prints a `guarded:` note for every state whose system exits are all guarded, and the extraction reference says how to re-attribute the edge. The alternative was a warning that fails the run. Too many honest system edges carry a guard.
 
-## Added after the second dogfood run, the card view (2026-10-14)
+## Added after the second dogfood run, the card view, 2026-10-14
 
 ### A timeout counts only when its target can still reach an end
 
@@ -105,21 +105,21 @@ The audit of the other six sentences changed two. `reachable` now says "every st
 
 The alternative for `can-end` was to keep the skip and weaken the sentence to "every reachable state that has a way out". Rejected. A reader then needs two lines to know whether anything is trapped, and the first dogfood run showed that one green line is what gets read.
 
-## Renamed to `show-and-improve-state-machine` (2026-10-14)
+## Renamed to `show-and-improve-state-machine`, 2026-10-14
 
 The working name was `every-path-ends`, the property the checker proves. The published name says what the skill does for the reader. "Show" is the report, the diagram, the checks and the waits. "Improve" is the option cards with a pick. The Agent Skills specification requires `name` to match the folder, so the folder, the frontmatter, the tests, the eval file and every path changed together. The description still opens with the proof claim, so a search for "prove", "stuck" or "end state" finds it. The report's last line still says "every path ends".
 
-## Laid out as a catalog, `skills/<name>/` (2026-10-14)
+## Laid out as a catalog, `skills/<name>/`, 2026-10-14
 
 The `npx skills` CLI finds a skill at the repo root or under fixed folders such as `skills/<name>/SKILL.md`. The future public repo is a catalog, `bath/skills`, so the skill moved to `skills/show-and-improve-state-machine/`, and the tests, evals, README, DECISIONS.md and LICENSE stay at the root. The licence is MIT, in the frontmatter and in `LICENSE`, copyright Miller Bath 2026. The alternative, one repo per skill, was not taken. The owner wants more skills in one place.
 
-## The report page is the script's (2026-10-14)
+## The report page is the script's, 2026-10-14
 
 The HTML report used to be described in one paragraph, and the agent wrote it fresh each run, so no two pages looked alike. Now `report` fills a shipped template, `assets/report.html`, from the table, and a small judgement JSON carries the parts that need an agent: the example the reader saw, the fix cards with a pick, the trust notes. The template loads only Mermaid and the fonts, uses colour tokens with a dark theme, and reads at phone width.
 
 Two alternatives were rejected. Keeping the page in prose, because the owner saw one page and wants that page every time. Putting the judgement inside the table file, because the table is the model and should stay checkable without opinions in it.
 
-## The page is written on every run (2026-10-14)
+## The page is written on every run, 2026-10-14
 
 The four-findings threshold is gone. Every run ends with `report`. An interactive run writes the page to a temp directory, opens it and says the path. A worker run writes it to the caller's folder. The chat message is the path and one line per failing path. The owner saw the page and reads it before the terminal, so a threshold only decided when to withhold the thing he wanted.
 
