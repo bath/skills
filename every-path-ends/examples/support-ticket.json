@@ -1,0 +1,19 @@
+{
+  "name": "support ticket",
+  "initial": "new",
+  "ends": ["resolved", "closed_no_reply"],
+  "actors": {
+    "system": "system",
+    "agent": "human",
+    "customer": "external"
+  },
+  "states": {
+    "working": {"open_ended": "the agent's queue is reviewed at the morning stand-up"}
+  },
+  "transitions": [
+    {"from": "new", "on": "assign", "to": "working", "actor": "system", "evidence": "docs/support.md#triage"},
+    {"from": "working", "on": "ask_customer", "to": "waiting_customer", "actor": "agent", "evidence": "docs/support.md#questions"},
+    {"from": "waiting_customer", "on": "customer_replies", "to": "working", "actor": "customer", "evidence": "docs/support.md#questions"},
+    {"from": "working", "on": "resolve", "to": "resolved", "actor": "agent", "evidence": "docs/support.md#resolve"}
+  ]
+}

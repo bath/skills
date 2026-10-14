@@ -1,0 +1,24 @@
+{
+  "name": "deploy",
+  "initial": "requested",
+  "ends": ["live", "abandoned"],
+  "actors": {
+    "system": "system",
+    "engineer": "human",
+    "approver": "human",
+    "ci": "external"
+  },
+  "states": {
+    "awaiting_approval": {"note": "a person must click approve; nothing names who"}
+  },
+  "transitions": [
+    {"from": "requested", "on": "build", "to": "building", "actor": "system", "evidence": "pipeline.yml:12"},
+    {"from": "building", "on": "green", "to": "awaiting_approval", "actor": "ci", "evidence": "pipeline.yml:30"},
+    {"from": "building", "on": "red", "to": "refused", "actor": "ci", "evidence": "pipeline.yml:34"},
+    {"from": "awaiting_approval", "on": "approve", "to": "deploying", "actor": "approver", "evidence": "pipeline.yml:41"},
+    {"from": "awaiting_approval", "on": "reject", "to": "refused", "actor": "approver", "evidence": "pipeline.yml:45"},
+    {"from": "deploying", "on": "healthy", "to": "live", "actor": "system", "evidence": "deploy.sh:80"},
+    {"from": "deploying", "on": "unhealthy", "to": "rolling_back", "actor": "system", "evidence": "deploy.sh:92"},
+    {"from": "rolling_back", "on": "rolled_back", "to": "requested", "actor": "system", "evidence": "deploy.sh:110"}
+  ]
+}

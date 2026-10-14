@@ -270,5 +270,37 @@ class JsonResult(unittest.TestCase):
         self.assertEqual([e["on"] for e in finding["path"]], ["pay", "ship", "lose"])
 
 
+class Examples(unittest.TestCase):
+    """The shipped examples show one clean table and two with the defects the skill is for."""
+
+    EXAMPLES = os.path.join(HERE, "..", "every-path-ends", "examples")
+
+    def run_example(self, name):
+        done = subprocess.run([sys.executable, "-I", SCRIPT, "check", os.path.join(self.EXAMPLES, name)],
+                              capture_output=True, text=True)
+        return done.returncode, done.stdout + done.stderr
+
+    def test_the_order_passes_every_check(self):
+        code, out = self.run_example("order.json")
+        self.assertEqual(code, 0, out)
+
+    def test_the_support_ticket_waits_on_the_customer_with_no_owner_and_loops_without_a_bound(self):
+        code, out = self.run_example("support-ticket.json")
+        self.assertEqual(code, 1, out)
+        self.assertIn("FAIL waits-owned", out)
+        self.assertIn("waiting_customer waits on customer (external) and has no owner and no timeout", out)
+        self.assertIn("FAIL loops-bounded", out)
+        self.assertIn("FAIL ends-reachable", out)   # closed_no_reply is declared but nothing leads there
+
+    def test_the_deploy_traps_a_refused_build_and_waits_on_an_approver_with_no_timeout(self):
+        code, out = self.run_example("deploy.json")
+        self.assertEqual(code, 1, out)
+        self.assertIn("FAIL exit", out)
+        self.assertIn("refused is not an end state and has no transition out of it", out)
+        self.assertIn("FAIL waits-owned", out)
+        self.assertIn("awaiting_approval waits on approver (human) and has no timeout", out)
+        self.assertIn("FAIL loops-bounded", out)   # unhealthy, rolled back, requested again, for ever
+
+
 if __name__ == "__main__":
     unittest.main()
