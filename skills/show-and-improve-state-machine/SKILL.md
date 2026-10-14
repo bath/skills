@@ -1,5 +1,6 @@
 ---
 name: show-and-improve-state-machine
+license: MIT
 description: Model a process in a codebase or a document as a state machine and prove that every path ends in a known end state, or list the paths that do not. Use when asked to model a lifecycle, workflow, pipeline, status flow or the life of a piece of work; to find states that are stuck, trapped or unreachable; to find work that waits on nobody; to check that retries are bounded; or to draw a state diagram from code. Also use when a ticket says "show every path that has no known end" or "where can this get stuck".
 ---
 

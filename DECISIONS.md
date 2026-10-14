@@ -108,3 +108,7 @@ Alternative for `can-end`: keep the skip and weaken the sentence to "every reach
 ## Renamed to `show-and-improve-state-machine` (2026-10-14)
 
 The working name was `every-path-ends`, the property the checker proves. The published name says what the skill does for the reader: "show" is the report (the diagram, the checks, the waits), and "improve" is the option cards with a pick. The Agent Skills specification requires `name` to match the folder, so the folder, the frontmatter, the tests, the eval file and every path changed together. The description still opens with the proof claim, so a search for "prove", "stuck" or "end state" finds it. The report's last line still says "every path ends".
+
+## Laid out as a catalog, `skills/<name>/` (2026-10-14)
+
+The `npx skills` CLI finds a skill at the repo root or under fixed folders such as `skills/<name>/SKILL.md`. The future public repo is a catalog (`bath/skills`), so the skill moved to `skills/show-and-improve-state-machine/` and the tests, evals, README, DECISIONS.md and LICENSE stay at the root. Licence: MIT, in the frontmatter and in `LICENSE`, copyright Miller Bath 2026. The alternative, one repo per skill, was not taken: the owner wants more skills in one place.

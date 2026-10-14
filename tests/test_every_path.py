@@ -11,7 +11,7 @@ import tempfile
 import unittest
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-SCRIPT = os.path.join(HERE, "..", "show-and-improve-state-machine", "scripts", "every_path.py")
+SCRIPT = os.path.join(HERE, "..", "skills", "show-and-improve-state-machine", "scripts", "every_path.py")
 
 ACTORS = {"system": "system", "customer": "external", "carrier": "external", "agent": "human"}
 
@@ -448,7 +448,7 @@ class OpenEndedWithEvidence(unittest.TestCase):
 class Examples(unittest.TestCase):
     """The shipped examples show one clean table and two with the defects the skill is for."""
 
-    EXAMPLES = os.path.join(HERE, "..", "show-and-improve-state-machine", "examples")
+    EXAMPLES = os.path.join(HERE, "..", "skills", "show-and-improve-state-machine", "examples")
 
     def run_example(self, name):
         done = subprocess.run([sys.executable, "-I", SCRIPT, "check", os.path.join(self.EXAMPLES, name)],
