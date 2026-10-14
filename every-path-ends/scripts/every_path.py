@@ -211,9 +211,10 @@ def is_waiting(table: Table, state: str) -> bool:
 def wait_owner(table: Table, state: str) -> Optional[str]:
     """Who is accountable for ending the wait: the state's declared owner, else a person inside the
     process whose action ends it. An outside party (external) cannot own a wait."""
-    declared = table.state_info.get(state, {}).get("owner")
-    if declared:
-        return str(declared)
+    info = table.state_info.get(state, {})
+    if "owner" in info:
+        # Declared: a name, or null to say that nobody is told, whoever could act.
+        return str(info["owner"]) if info["owner"] else None
     humans = sorted({edge.actor for edge in table.out[state] if not edge.timeout and table.actor_kind(edge) == "human"})
     return ", ".join(humans) if humans else None
 
@@ -222,7 +223,14 @@ def check_waits_owned(table: Table, paths: Dict[str, List[Edge]]) -> Result:
     findings = []
     notes = []
     for state in table.states:
-        if state not in paths or not is_waiting(table, state):
+        if state not in paths or table.is_end(state):
+            continue
+        if not is_waiting(table, state):
+            system_exits = [e for e in table.out[state] if not e.timeout and table.actor_kind(e) == "system"]
+            if system_exits and all(e.guard for e in system_exits):
+                guards = "; ".join(f"{e.event} [{e.guard}]" for e in system_exits)
+                notes.append(f"guarded: {state} is moved by the system only under a guard ({guards}); "
+                             f"if a guard needs an outside party to act, that party is the actor and the state is a wait")
             continue
         info = table.state_info.get(state, {})
         movers = [edge for edge in table.out[state] if not edge.timeout]
@@ -240,50 +248,85 @@ def check_waits_owned(table: Table, paths: Dict[str, List[Edge]]) -> Result:
     return Result("waits-owned", "every wait names who ends it and has a timeout out of it", findings, notes)
 
 
-def find_cycle(table: Table, skip_bounded: bool) -> Optional[List[Edge]]:
-    """One cycle through states that are not ends, ignoring bounded edges; None when there is none."""
-    WHITE, GREY, BLACK = 0, 1, 2
-    colour = {s: WHITE for s in table.states}
-    stack: List[Edge] = []
+def strongly_connected(table: Table, nodes: List[str], edges: List[Edge]) -> List[List[str]]:
+    """Tarjan's components over `nodes` with `edges`, each in the order the states were named."""
+    index: Dict[str, int] = {}
+    low: Dict[str, int] = {}
+    on_stack = set()
+    stack: List[str] = []
+    out: Dict[str, List[str]] = {n: [] for n in nodes}
+    for edge in edges:
+        out[edge.source].append(edge.target)
+    components: List[List[str]] = []
+    counter = [0]
 
-    def visit(state: str) -> Optional[List[Edge]]:
-        colour[state] = GREY
-        for edge in table.out[state]:
-            if table.is_end(edge.target) or (skip_bounded and edge.bound):
-                continue
-            if colour[edge.target] == GREY:
-                # The target is on the current path: the cycle is the path from it, plus this edge.
-                # No edge on the path starts at the target only for a self-loop.
-                start = len(stack)
-                for i, on_path in enumerate(stack):
-                    if on_path.source == edge.target:
-                        start = i
-                        break
-                return stack[start:] + [edge]
-            if colour[edge.target] == WHITE:
-                stack.append(edge)
-                found = visit(edge.target)
+    def visit(node: str) -> None:
+        index[node] = low[node] = counter[0]
+        counter[0] += 1
+        stack.append(node)
+        on_stack.add(node)
+        for nxt in out[node]:
+            if nxt not in index:
+                visit(nxt)
+                low[node] = min(low[node], low[nxt])
+            elif nxt in on_stack:
+                low[node] = min(low[node], index[nxt])
+        if low[node] == index[node]:
+            component = []
+            while True:
+                top = stack.pop()
+                on_stack.discard(top)
+                component.append(top)
+                if top == node:
+                    break
+            components.append(sorted(component, key=nodes.index))
+
+    for node in nodes:
+        if node not in index:
+            visit(node)
+    return components
+
+
+def example_cycle(nodes: List[str], edges: List[Edge]) -> List[Edge]:
+    """One cycle inside a component: a depth-first walk from its first state back to a state on the path."""
+    out: Dict[str, List[Edge]] = {n: [] for n in nodes}
+    for edge in edges:
+        out[edge.source].append(edge)
+    path: List[Edge] = []
+    seen = set()
+
+    def walk(node: str) -> Optional[List[Edge]]:
+        seen.add(node)
+        for edge in out[node]:
+            on_path = [i for i, e in enumerate(path) if e.source == edge.target]
+            if edge.target == node:
+                return [edge]
+            if on_path:
+                return path[on_path[0]:] + [edge]
+            if edge.target not in seen:
+                path.append(edge)
+                found = walk(edge.target)
                 if found:
                     return found
-                stack.pop()
-        colour[state] = BLACK
+                path.pop()
         return None
 
-    for state in table.states:
-        if colour[state] == WHITE and not table.is_end(state):
-            found = visit(state)
-            if found:
-                return found
-    return None
+    return walk(nodes[0]) or []
 
 
 def check_loops_bounded(table: Table, paths: Dict[str, List[Edge]]) -> Result:
-    cycle = find_cycle(table, skip_bounded=True)
+    nodes = [s for s in table.states if not table.is_end(s)]
+    edges = [e for e in table.edges if not e.bound and e.source in nodes and e.target in nodes]
     findings = []
-    if cycle:
-        first = cycle[0].source
+    for component in strongly_connected(table, nodes, edges):
+        inside = [e for e in edges if e.source in component and e.target in component]
+        if not inside:
+            continue  # one state with no self-loop
+        cycle = example_cycle(component, inside)
+        first = cycle[0].source if cycle else component[0]
         loop = " ; ".join(str(edge) for edge in cycle)
-        findings.append(Finding(first, f"a loop with no bounded edge: {loop}; nothing counts the attempts, so it can go round for ever", paths.get(first)))
+        findings.append(Finding(first, f"a loop with no bounded edge through region {{{', '.join(component)}}}: {loop}; "
+                                       f"nothing counts the attempts, so it can go round for ever", paths.get(first)))
     return Result("loops-bounded", "every loop that avoids the ends has an edge with a bound", findings)
 
 
@@ -343,6 +386,11 @@ STYLES = {
 }
 
 
+def safe_label(text: str) -> str:
+    """Transition text Mermaid reads as one label: no statement separators, no second colon, one line."""
+    return " ".join(text.replace(";", ",").replace(":", ".").replace('"', "'").split())
+
+
 def mermaid_id(name: str) -> str:
     cleaned = "".join(ch if ch.isalnum() or ch == "_" else "_" for ch in name)
     return cleaned if cleaned and not cleaned[0].isdigit() else f"s_{cleaned}"
@@ -364,7 +412,7 @@ def diagram(table: Table, results: List[Result]) -> str:
             label += f" [{edge.guard}]"
         if edge.bound:
             label += f" ({edge.bound})"
-        lines.append(f"    {ids[edge.source]} --> {ids[edge.target]} : {label}")
+        lines.append(f"    {ids[edge.source]} --> {ids[edge.target]} : {safe_label(label)}")
     for end in table.ends:
         lines.append(f"    {ids[end]} --> [*]")
     marked: Dict[str, str] = {}

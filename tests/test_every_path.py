@@ -270,6 +270,74 @@ class JsonResult(unittest.TestCase):
         self.assertEqual([e["on"] for e in finding["path"]], ["pay", "ship", "lose"])
 
 
+class LoopRegions(unittest.TestCase):
+    """Two separate loops are two findings in one run, not one per run."""
+
+    def test_each_loop_region_is_reported_in_the_same_run(self):
+        flow = [
+            ("filed", "start", "in_review", "agent"),
+            ("in_review", "refuse", "refused", "system"),
+            ("refused", "redo", "in_review", "agent"),
+            ("in_review", "approve", "deploying", "system"),
+            ("deploying", "unhealthy", "rolling_back", "system"),
+            ("rolling_back", "rolled_back", "deploying", "system"),
+            ("deploying", "healthy", "live", "system"),
+        ]
+        code, out = check(table(flow, initial="filed", ends=("live",)))
+        self.assertEqual(code, 1, out)
+        self.assertIn("region {in_review, refused}", out)
+        self.assertIn("region {deploying, rolling_back}", out)
+        self.assertIn("in_review --refuse--> refused ; refused --redo--> in_review", out)
+
+    def test_one_bound_inside_a_region_leaves_the_other_cycle_reported(self):
+        flow = [
+            ("filed", "start", "a", "system"),
+            ("a", "x", "b", "system", {"bound": "n < 2"}),
+            ("b", "y", "a", "system"),
+            ("a", "z", "c", "system"),
+            ("c", "w", "a", "system"),
+            ("a", "end", "done", "system"),
+        ]
+        code, out = check(table(flow, initial="filed", ends=("done",)))
+        self.assertEqual(code, 1, out)
+        self.assertIn("region {a, c}", out)
+        self.assertNotIn("region {a, b", out)
+
+
+class OwnerDeclaredNull(unittest.TestCase):
+    def test_owner_null_says_nobody_is_told_even_when_a_person_could_act(self):
+        flow = [
+            ("new", "assign", "working", "system"),
+            ("working", "resolve", "resolved", "agent"),
+            ("working", "stale_30d", "resolved", "system", {"timeout": "30d"}),
+        ]
+        code, out = check(table(flow, initial="new", ends=("resolved",), states={"working": {"owner": None}}))
+        self.assertEqual(code, 1, out)
+        self.assertIn("working waits on agent (human) and has no owner", out)
+
+
+class GuardedSystemExit(unittest.TestCase):
+    def test_a_state_the_system_leaves_only_under_a_guard_gets_a_note(self):
+        flow = [
+            ("new", "assign", "checking", "system"),
+            ("checking", "pass", "done", "system", {"guard": "the check reported green"}),
+            ("checking", "fail", "failed", "system", {"guard": "the check reported red"}),
+            ("failed", "retry", "checking", "agent", {"bound": "tries < 3"}),
+            ("failed", "give_up", "done", "system", {"timeout": "1d"}),
+        ]
+        code, out = check(table(flow, initial="new", ends=("done",)))
+        self.assertIn("note guarded: checking", out)
+        self.assertIn("the check reported green", out)
+
+
+class DiagramLabels(unittest.TestCase):
+    def test_label_text_that_would_break_mermaid_is_made_safe(self):
+        flow = [("new", "start", "done", "system", {"guard": "next 00:00 UTC; or reset", "bound": "n < 3"})]
+        code, out = run("diagram", table(flow, initial="new", ends=("done",)))
+        self.assertEqual(code, 0, out)
+        self.assertIn("new --> done : start / system [next 00.00 UTC, or reset] (n < 3)", out)
+
+
 class Examples(unittest.TestCase):
     """The shipped examples show one clean table and two with the defects the skill is for."""
 
