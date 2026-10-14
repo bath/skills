@@ -350,6 +350,71 @@ class DiagramLabels(unittest.TestCase):
         self.assertIn("new --> done : start / system [next 00.00 UTC, or reset] (n < 3)", out)
 
 
+class TimeoutIntoATrap(unittest.TestCase):
+    """A 14-day watch that leads to a state nothing leaves is not a way out of the wait."""
+
+    FLOW = [
+        ("new", "assign", "working", "system"),
+        ("working", "resolve", "resolved", "agent"),
+        ("working", "watch_14d", "expired", "system", {"timeout": "14d"}),
+    ]
+
+    def test_a_timeout_whose_target_cannot_reach_an_end_does_not_count(self):
+        code, out = check(table(self.FLOW, initial="new", ends=("resolved",)))
+        self.assertEqual(code, 1, out)
+        self.assertIn("FAIL waits-owned", out)
+        self.assertIn("working waits on agent (human) and has no timeout that reaches an end "
+                      "(watch_14d leads to expired, from which no end can be reached)", out)
+
+    def test_a_timeout_into_a_state_that_still_ends_counts(self):
+        flow = self.FLOW + [("expired", "archive", "resolved", "system")]
+        code, out = check(table(flow, initial="new", ends=("resolved",)))
+        self.assertEqual(code, 0, out)
+
+
+class SummaryLines(unittest.TestCase):
+    def test_a_failed_check_prints_a_count_line_before_the_detail(self):
+        flow = [
+            ("new", "assign", "working", "system"),
+            ("working", "ask", "waiting_customer", "agent", {"bound": "asks < 3"}),
+            ("waiting_customer", "reply", "working", "customer"),
+            ("working", "resolve", "resolved", "agent"),
+            ("working", "stale", "resolved", "system", {"timeout": "30d"}),
+            ("working", "park", "parked", "agent"),
+            ("parked", "unpark", "working", "agent", {"bound": "parks < 2"}),
+        ]
+        code, out = check(table(flow, initial="new", ends=("resolved",)))
+        self.assertIn("FAIL waits-owned: every wait names who ends it and has a timeout out of it\n"
+                      "  2 waits: 1 with no owner, 2 with no timeout\n", out)
+
+    def test_a_passed_check_has_no_count_line(self):
+        code, out = check(table([("a", "go", "b", "system")], initial="a", ends=("b",)))
+        self.assertIn("PASS waits-owned: every wait names who ends it and has a timeout out of it\nPASS loops-bounded", out)
+
+
+class OpenEndedWithEvidence(unittest.TestCase):
+    def test_open_ended_can_say_what_kind_of_evidence_it_rests_on(self):
+        flow = [
+            ("new", "assign", "working", "system"),
+            ("working", "resolve", "resolved", "agent"),
+        ]
+        code, out = check(table(flow, initial="new", ends=("resolved",), states={"working": {"open_ended": {
+            "reason": "the morning patrol reads the queue",
+            "kind": "recipe",
+            "evidence": "recipes/patrol.toml:14",
+        }}}))
+        self.assertEqual(code, 0, out)
+        self.assertIn("note open-ended (recipe, recipes/patrol.toml:14): working waits on agent (human) with no timeout "
+                      "because the morning patrol reads the queue", out)
+
+    def test_an_unknown_evidence_kind_is_a_table_error(self):
+        flow = [("new", "go", "done", "system")]
+        code, out = check(table(flow, initial="new", ends=("done",),
+                                states={"new": {"open_ended": {"reason": "x", "kind": "vibes"}}}))
+        self.assertEqual(code, 2, out)
+        self.assertIn("kind must be one of code, timer, recipe, schedule, document", out)
+
+
 class Examples(unittest.TestCase):
     """The shipped examples show one clean table and two with the defects the skill is for."""
 

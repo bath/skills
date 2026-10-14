@@ -222,6 +222,7 @@ def wait_owner(table: Table, state: str) -> Optional[str]:
 def check_waits_owned(table: Table, paths: Dict[str, List[Edge]]) -> Result:
     findings = []
     notes = []
+    good = can_reach_end(table)
     for state in table.states:
         if state not in paths or table.is_end(state):
             continue
@@ -238,9 +239,14 @@ def check_waits_owned(table: Table, paths: Dict[str, List[Edge]]) -> Result:
         missing = []
         if wait_owner(table, state) is None:
             missing.append("no owner")
-        if not any(edge.timeout for edge in table.out[state]):
+        timeouts = [edge for edge in table.out[state] if edge.timeout]
+        if not any(edge.target in good for edge in timeouts):
             if info.get("open_ended"):
                 notes.append(f"open-ended: {state} waits on {waits_on} with no timeout because {info['open_ended']}")
+            elif timeouts:
+                # A timer that ends the wait in a trap ends nothing: name it, so the finding is not "add a timeout".
+                dead = ", ".join(f"{e.event} leads to {e.target}" for e in timeouts)
+                missing.append(f"no timeout that reaches an end ({dead}, from which no end can be reached)")
             else:
                 missing.append("no timeout")
         if missing:
