@@ -289,6 +289,18 @@ class LoopRegions(unittest.TestCase):
         self.assertIn("region {deploying, rolling_back}", out)
         self.assertIn("in_review --refuse--> refused ; refused --redo--> in_review", out)
 
+    def test_a_region_lists_the_edges_that_close_its_loops(self):
+        flow = [
+            ("filed", "start", "a", "system"),
+            ("a", "x", "b", "system"),
+            ("b", "y", "a", "system"),
+            ("a", "z", "c", "system"),
+            ("c", "w", "a", "system"),
+            ("a", "end", "done", "system"),
+        ]
+        code, out = check(table(flow, initial="filed", ends=("done",)))
+        self.assertIn("closing edges: b --y--> a ; c --w--> a", out)
+
     def test_one_bound_inside_a_region_leaves_the_other_cycle_reported(self):
         flow = [
             ("filed", "start", "a", "system"),

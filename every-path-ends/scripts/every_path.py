@@ -314,6 +314,31 @@ def example_cycle(nodes: List[str], edges: List[Edge]) -> List[Edge]:
     return walk(nodes[0]) or []
 
 
+def closing_edges(nodes: List[str], edges: List[Edge]) -> List[Edge]:
+    """The edges a depth-first walk of the region finds pointing back onto its own path. Every cycle in
+    the region goes through at least one of them, so a bound on each breaks every loop."""
+    out: Dict[str, List[Edge]] = {n: [] for n in nodes}
+    for edge in edges:
+        out[edge.source].append(edge)
+    WHITE, GREY, BLACK = 0, 1, 2
+    colour = {n: WHITE for n in nodes}
+    back: List[Edge] = []
+
+    def walk(node: str) -> None:
+        colour[node] = GREY
+        for edge in out[node]:
+            if colour[edge.target] == GREY:
+                back.append(edge)
+            elif colour[edge.target] == WHITE:
+                walk(edge.target)
+        colour[node] = BLACK
+
+    for node in nodes:
+        if colour[node] == WHITE:
+            walk(node)
+    return back
+
+
 def check_loops_bounded(table: Table, paths: Dict[str, List[Edge]]) -> Result:
     nodes = [s for s in table.states if not table.is_end(s)]
     edges = [e for e in table.edges if not e.bound and e.source in nodes and e.target in nodes]
@@ -325,8 +350,9 @@ def check_loops_bounded(table: Table, paths: Dict[str, List[Edge]]) -> Result:
         cycle = example_cycle(component, inside)
         first = cycle[0].source if cycle else component[0]
         loop = " ; ".join(str(edge) for edge in cycle)
+        closing = " ; ".join(str(edge) for edge in closing_edges(component, inside))
         findings.append(Finding(first, f"a loop with no bounded edge through region {{{', '.join(component)}}}: {loop}; "
-                                       f"nothing counts the attempts, so it can go round for ever", paths.get(first)))
+                                       f"nothing counts the attempts, so it can go round for ever; closing edges: {closing}", paths.get(first)))
     return Result("loops-bounded", "every loop that avoids the ends has an edge with a bound", findings)
 
 
