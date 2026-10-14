@@ -33,6 +33,13 @@ Do it this way:
 
 A state in the table that the code represents with five fields is fine. A state that the code represents with one field but that behaves two different ways depending on something else is two states.
 
+## A guard that depends on history
+
+A guard such as "an earlier run left a pull request" reads the past, not the present. The checker does not read guards, so its shortest path can take the edge from a state the history never allows, and the printed path is one that cannot happen. Two ways out:
+
+- Split the state (preferred). The history is part of the state: `with_worker` becomes `with_worker` and `with_worker_after_refusal`. The paths are then real and the diagram shows the two lives.
+- Keep the state and rewrite the path by hand in the report, saying that the printed one uses an edge the history forbids. Cheaper, and the next run makes the same mistake.
+
 ## State or event
 
 A state lasts. An event is an instant. `in_review` is a state; `review` is an event; `reviewed` is a state again. When the code has a status value that reads as a verb (`submit`, `retry`), ask what the thing is doing while that value is set and name the state after that.
