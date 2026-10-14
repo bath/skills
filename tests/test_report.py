@@ -168,6 +168,17 @@ class DiagramOptions(unittest.TestCase):
         self.assertEqual(out.count("--> expired"), 1, out)
         self.assertIn('state "expired (from a, b, c, after 14d)" as expired', out)
 
+    def test_a_timeout_shared_by_many_states_names_their_count_not_their_names(self):
+        data = self.shared()
+        for extra in ("d", "e"):
+            data["transitions"].append({"from": "c", "on": "go_" + extra, "to": extra, "actor": "agent"})
+            data["transitions"].append({"from": extra, "on": "finish", "to": "done", "actor": "agent"})
+            data["transitions"].append({"from": extra, "on": "stale_14d", "to": "expired", "actor": "system", "timeout": "14d"})
+        path = self.write(data)
+        code, out, err = run(["diagram", path, "--shared-timeouts"])
+        os.unlink(path)
+        self.assertIn('state "expired (from 5 states, after 14d)" as expired', out)
+
     def test_a_timeout_shared_by_two_states_is_drawn_twice(self):
         data = self.shared()
         data["transitions"].pop()  # c no longer expires

@@ -496,7 +496,8 @@ def diagram(table: Table, results: List[Result], short_labels: bool = False, fol
     shared = shared_timeouts(table) if fold_timeouts else {}
     drawn_shared = set()
     for target, sources, timeout in shared.values():
-        display[target] = f"{target} (from {', '.join(sources)}, after {timeout})"
+        origin = ", ".join(sources) if len(sources) <= 4 else f"{len(sources)} states"
+        display[target] = f"{target} (from {origin}, after {timeout})"
     for name, ident in ids.items():
         if display[name] != ident:
             lines.append(f'    state "{safe_label(display[name])}" as {ident}')
@@ -755,7 +756,7 @@ def build_report(table: Table, results: List[Result], judgement: dict, short_lab
         note += " Labels show the event only; the full diagram also carries the actor, the guard and the bound."
     if shared:
         target, sources, timeout = next(iter(shared.values()))
-        note += f" The {esc(timeout)} timeout goes out of {len(sources)} states into {esc(target)}; one arrow stands for all of them here."
+        note += f" After {esc(timeout)}, {len(sources)} states go to {esc(target)}; one arrow stands for all of them here."
     with_evidence = sum(1 for e in table.edges if e.evidence and e.evidence != ["assumed"])
     trust = [f"The table is a reading of the code. {with_evidence} of {len(table.edges)} rows name a file:line, so each one can be checked.",
              "The checks are the machine's: every number and line above the cards comes from the table alone."]
