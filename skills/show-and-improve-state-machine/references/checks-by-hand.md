@@ -6,7 +6,7 @@ For a session that cannot run `scripts/every_path.py`, because there is no inter
 
 - The states are every name in `initial`, `ends`, `states` and the rows, in order of first appearance. Keep that order. The script walks and prints in it.
 - A row is usable when `from`, `on`, `to` and `actor` are non-empty strings, the actor is in `actors`, and each actor's kind is `system`, `human` or `external`.
-- Paths come from a breadth-first walk from the initial state over the rows in table order. The first time the walk reaches a state, its path is fixed. Every finding prints that path, in the form `(start) a --e1--> b ; b --e2--> c`.
+- Paths come from a breadth-first walk over the rows in table order, started from every initial state in the order they are listed. The first time the walk reaches a state, its path is fixed. Every finding prints that path, in the form `(start) a --e1--> b ; b --e2--> c`. An initial state's own path is `(start) S`, with its own name.
 - The ends-reach set: start from the ends and walk the rows backwards. Every state you touch can still reach an end.
 
 ## The checks, in print order

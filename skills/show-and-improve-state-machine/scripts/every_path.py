@@ -136,9 +136,10 @@ def _as_list(value) -> List[str]:
     raise TableError(f"expected a string or a list of strings, got {value!r}")
 
 
-def format_path(initials: List[str], path: List[Edge]) -> str:
+def format_path(state: str, path: List[Edge]) -> str:
+    """The path that reaches `state`. An empty path means the state is itself an initial state."""
     if not path:
-        return f"(start) {initials[0]}"
+        return f"(start) {state}"
     return "(start) " + " ; ".join(str(edge) for edge in path)
 
 
@@ -428,7 +429,7 @@ def report(table: Table, results: List[Result]) -> str:
         for finding in result.findings:
             lines.append(f"  - {finding.detail}")
             if finding.path is not None:
-                lines.append(f"    path: {format_path(table.initials, finding.path)}")
+                lines.append(f"    path: {format_path(finding.state, finding.path)}")
         for note in result.notes:
             lines.append(f"  note {note}")
     failed = [r for r in results if not r.passed]
