@@ -1,15 +1,20 @@
 #!/usr/bin/env python3
 """Check a transition table and draw it. Standard library only; Python 3.9 or later.
 
-    every_path.py check   table.json   # pass or fail per property, a concrete path per failure
-    every_path.py diagram table.json   # Mermaid stateDiagram-v2 with failing states marked
-    every_path.py table   table.json   # the same table as Markdown, for a report or a PR
+    every_path.py check   table.json [--json]             # pass or fail per property, a concrete path per failure
+    every_path.py diagram table.json [--short-labels] [--shared-timeouts]
+                                                          # Mermaid stateDiagram-v2 with failing states marked
+    every_path.py table   table.json                      # the same table as Markdown, for a report or a PR
+    every_path.py report  table.json [--judgement j.json] [--out page.html] [--short-labels]
+                                                          # one self-contained HTML page, the same every run
 
-Exit code 1 when a check fails, so the command can run as a test.
+Exit code 1 when a check fails (check only), 2 when a file cannot be read.
 """
 from __future__ import annotations
 
+import html
 import json
+import os
 import sys
 from collections import deque
 from typing import Dict, List, Optional, Tuple
@@ -466,40 +471,79 @@ def mermaid_id(name: str) -> str:
     return cleaned if cleaned and not cleaned[0].isdigit() else f"s_{cleaned}"
 
 
-def diagram(table: Table, results: List[Result]) -> str:
+SHARED_TIMEOUT_MIN = 3
+
+
+def shared_timeouts(table: Table) -> Dict[int, Tuple[str, List[str], str]]:
+    """Timeout edges that three or more states share (same event, target and timeout), as edge index
+    to (target, sources, timeout). Drawn once, they keep a busy diagram readable."""
+    groups: Dict[Tuple[str, str, str], List[Edge]] = {}
+    for edge in table.edges:
+        if edge.timeout:
+            groups.setdefault((edge.event, edge.target, edge.timeout), []).append(edge)
+    shared = {}
+    for (event, target, timeout), edges in groups.items():
+        if len(edges) >= SHARED_TIMEOUT_MIN:
+            for edge in edges:
+                shared[edge.index] = (target, [e.source for e in edges], timeout)
+    return shared
+
+
+def diagram(table: Table, results: List[Result], short_labels: bool = False, fold_timeouts: bool = False) -> str:
     lines = ["stateDiagram-v2"]
     ids = {name: mermaid_id(name) for name in table.states}
+    display = {name: name for name in table.states}
+    shared = shared_timeouts(table) if fold_timeouts else {}
+    drawn_shared = set()
+    for target, sources, timeout in shared.values():
+        display[target] = f"{target} (from {', '.join(sources)}, after {timeout})"
     for name, ident in ids.items():
-        if ident != name:
-            lines.append(f'    state "{name}" as {ident}')
+        if display[name] != ident:
+            lines.append(f'    state "{safe_label(display[name])}" as {ident}')
     for initial in table.initials:
         lines.append(f"    [*] --> {ids[initial]}")
     for edge in table.edges:
-        label = f"{edge.event} / {edge.actor}"
-        if edge.timeout:
-            label += f", after {edge.timeout}"
-        if edge.guard:
-            label += f" [{edge.guard}]"
-        if edge.bound:
-            label += f" ({edge.bound})"
+        if edge.index in shared:
+            key = (edge.event, edge.target, edge.timeout)
+            if key in drawn_shared:
+                continue
+            drawn_shared.add(key)
+        if short_labels:
+            label = edge.event
+        else:
+            label = f"{edge.event} / {edge.actor}"
+            if edge.timeout:
+                label += f", after {edge.timeout}"
+            if edge.guard:
+                label += f" [{edge.guard}]"
+            if edge.bound:
+                label += f" ({edge.bound})"
         lines.append(f"    {ids[edge.source]} --> {ids[edge.target]} : {safe_label(label)}")
     for end in table.ends:
         lines.append(f"    {ids[end]} --> [*]")
-    marked: Dict[str, str] = {}
-    by_check = {r.check: r for r in results}
-    for check, style in MARKS:
-        for finding in by_check[check].findings:
-            marked.setdefault(finding.state, style)
+    marked = marks(results)
     if marked:
         lines.append("")
         for style in sorted(set(marked.values())):
             lines.append(f"    classDef {style} {STYLES[style]}")
         for name, style in marked.items():
             lines.append(f"    class {ids[name]} {style}")
-        legend = {"trap": "red: no end can follow", "wait": "amber: a wait with no owner or no timeout",
-                  "loop": "purple: starts a loop nothing bounds", "orphan": "grey: nothing leads here", "leak": "blue: an end with a way out"}
-        lines.append("    %% " + "; ".join(legend[s] for s in sorted(set(marked.values()))))
+        lines.append("    %% " + "; ".join(LEGEND[s] for s in sorted(set(marked.values()))))
     return "\n".join(lines)
+
+
+LEGEND = {"trap": "red: no end can follow", "wait": "amber: a wait with no owner or no timeout",
+          "loop": "purple: starts a loop nothing bounds", "orphan": "grey: nothing leads here", "leak": "blue: an end with a way out"}
+
+
+def marks(results: List[Result]) -> Dict[str, str]:
+    """State to the class that colours it, the first mark in MARKS order winning."""
+    marked: Dict[str, str] = {}
+    by_check = {r.check: r for r in results}
+    for check, style in MARKS:
+        for finding in by_check[check].findings:
+            marked.setdefault(finding.state, style)
+    return marked
 
 
 def markdown_table(table: Table) -> str:
@@ -526,6 +570,230 @@ def markdown_table(table: Table) -> str:
     return "\n".join(lines)
 
 
+# ---------------------------------------------------------------- report
+
+STRENGTHS = {"Strong": "s", "Worth exploring": "w", "Speculative": "x"}
+SKILL_NAME = "show-and-improve-state-machine"
+TEMPLATE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "assets", "report.html")
+
+
+class JudgementError(Exception):
+    """The judgement file is not usable; the message says what to fix."""
+
+
+def load_judgement(path: Optional[str]) -> dict:
+    if path is None:
+        return {}
+    with open(path, encoding="utf-8") as handle:
+        data = json.load(handle)
+    if not isinstance(data, dict):
+        raise JudgementError("the judgement must be a JSON object")
+    for card in data.get("cards") or []:
+        for key in ("id", "title", "problem", "options"):
+            if key not in card:
+                raise JudgementError(f"card {card.get('id', '?')}: needs {key!r}")
+        for option in card["options"]:
+            for key in ("key", "text", "strength"):
+                if key not in option:
+                    raise JudgementError(f"card {card['id']} option {option.get('key', '?')}: needs {key!r}")
+            if option["strength"] not in STRENGTHS:
+                raise JudgementError(f"card {card['id']} option {option['key']}: strength must be one of "
+                                     f"{', '.join(STRENGTHS)}, not {option['strength']!r}")
+    seen = data.get("seen")
+    if seen is not None and not isinstance(seen, dict):
+        raise JudgementError("'seen' must be an object with title, lines, state and text")
+    return data
+
+
+def esc(text) -> str:
+    return html.escape(str(text), quote=True)
+
+
+def chip(state: str, marked: Dict[str, str], table: Table) -> str:
+    cls = {"trap": "t", "wait": "w", "loop": "l", "orphan": "o", "leak": "e"}.get(marked.get(state, ""), "")
+    if not cls and table.is_end(state):
+        cls = "e"
+    return f'<span class="st {cls}">{esc(state)}</span>' if cls else f"<code>{esc(state)}</code>"
+
+
+def plural(n: int, one: str, many: str) -> str:
+    return one if n == 1 else many
+
+
+def plain_words(table: Table, result: Result, marked: Dict[str, str]) -> str:
+    """One sentence per check that a reader with no graph vocabulary can follow."""
+    chips = lambda states: ", ".join(chip(s, marked, table) for s in states)  # noqa: E731
+    states = [f.state for f in result.findings]
+    n = len(states)
+    if result.check == "reachable":
+        return (f"Every state that is not an end can be reached from {esc(', '.join(table.initials))}." if result.passed
+                else f"Nothing leads to {chips(states)}.")
+    if result.check == "ends-reachable":
+        return (f"Each of the {len(table.ends)} ends can happen." if result.passed
+                else f"{chips(states)} {plural(n, 'is', 'are')} declared an end and can never happen.")
+    if result.check == "ends-closed":
+        return ("No end moves on again." if result.passed
+                else f"{chips(states)} {plural(n, 'moves', 'move')} on again, so {plural(n, 'it is', 'they are')} not an end.")
+    if result.check == "exit":
+        return ("Every state that is not an end has a way out." if result.passed
+                else f"{chips(states)} {plural(n, 'is', 'are')} not an end and {plural(n, 'has', 'have')} no way out.")
+    if result.check == "can-end":
+        return ("From every reachable state, an end can still follow." if result.passed
+                else f"From {chips(states)}, no end can follow: a trap.")
+    if result.check == "waits-owned":
+        if result.passed:
+            return "Every wait has an owner who is told and a timeout that leads to an end, or a written reason to be open-ended."
+        no_timeout = sum(1 for f in result.findings if "no timeout" in f.detail)
+        no_owner = sum(1 for f in result.findings if "no owner" in f.detail)
+        return (f"{n} {plural(n, 'state waits', 'states wait')} on someone. {no_timeout} {plural(no_timeout, 'has', 'have')} no timeout "
+                f"that leads to an end, and {no_owner} {plural(no_owner, 'has', 'have')} no owner who is told.")
+    if result.check == "loops-bounded":
+        if result.passed:
+            return "Every loop that avoids the ends has a bound."
+        sizes = [len(region_states(f)) for f in result.findings]
+        if n == 1:
+            return f"1 loop region covers {sizes[0]} states. Nothing counts the rounds."
+        return f"{n} loop regions cover {', '.join(str(x) for x in sizes)} states. Nothing counts the rounds."
+    return result.title
+
+
+def region_states(finding: Finding) -> List[str]:
+    """The states of a loop region, read back from the finding's own text."""
+    inside = finding.detail.split("region {", 1)[1].split("}", 1)[0]
+    return [x.strip() for x in inside.split(",") if x.strip()]
+
+
+def wait_rows(table: Table, results: List[Result], marked: Dict[str, str]) -> str:
+    good = can_reach_end(table)
+    rows = []
+    for finding in next(r for r in results if r.check == "waits-owned").findings:
+        state = finding.state
+        movers = sorted({e.actor for e in table.out[state] if not e.timeout})
+        owner = wait_owner(table, state)
+        timeouts = [e for e in table.out[state] if e.timeout]
+        live = [e for e in timeouts if e.target in good]
+        if live:
+            timeout = esc(", ".join(f"{e.event} after {e.timeout}" for e in live))
+            timeout_cell = f"<td>{timeout}</td>"
+        elif timeouts:
+            dead = esc(", ".join(f"{e.event} after {e.timeout}, into a trap" for e in timeouts))
+            timeout_cell = f'<td class="no">{dead}</td>'
+        else:
+            timeout_cell = '<td class="no">none</td>'
+        owner_cell = f"<td>{esc(owner)}</td>" if owner else '<td class="no">no</td>'
+        rows.append(f"<tr><td>{chip(state, marked, table)}</td><td>{esc(', '.join(movers))}</td>{owner_cell}{timeout_cell}</tr>")
+    return "\n      ".join(rows)
+
+
+def loops_section(table: Table, results: List[Result], marked: Dict[str, str]) -> str:
+    result = next(r for r in results if r.check == "loops-bounded")
+    if result.passed:
+        return ""
+    blocks = []
+    for finding in result.findings:
+        states = region_states(finding)
+        cycle = finding.detail.split("}: ", 1)[1].split("; nothing counts", 1)[0]
+        closing = finding.detail.split("closing edges: ", 1)[1] if "closing edges: " in finding.detail else ""
+        blocks.append(
+            f'<div class="region"><div>{len(states)} states: {" ".join(chip(x, marked, table) for x in states)}</div>'
+            f"<div>Example: <code>{esc(cycle)}</code></div>"
+            f'<div class="edges">closing edges (a bound on each breaks every loop here): {esc(closing)}</div></div>')
+    return ('<section>\n  <h2>Loops nothing counts</h2>\n  <p>A loop that avoids every end goes round until something counts the rounds. '
+            'Each region below is one such loop, with the edges that close it.</p>\n  <div class="regions">' + "".join(blocks) + "</div>\n</section>")
+
+
+def seen_section(seen: Optional[dict], marked: Dict[str, str], table: Table) -> str:
+    if not seen:
+        return ""
+    lines = [esc(x) for x in seen.get("lines") or []]
+    bubble = ""
+    if lines:
+        bubble = '<div class="bubble"><span class="t">' + lines[0] + "</span>" + "".join(f"<span>{x}</span>" for x in lines[1:]) + "</div>"
+    paras = []
+    if seen.get("state"):
+        paras.append(f"<p>In the model, this is {chip(seen['state'], marked, table)}.</p>")
+    paras += [f"<p>{esc(x)}</p>" for x in seen.get("text") or []]
+    return (f'<section>\n  <h2>{esc(seen.get("title") or "What the reader saw")}</h2>\n  <div class="chatrow">\n    {bubble}\n'
+            f'    <div style="display:grid;gap:10px">{"".join(paras)}</div>\n  </div>\n</section>')
+
+
+def cards_section(cards: List[dict]) -> str:
+    if not cards:
+        return ""
+    articles = []
+    for card in cards:
+        picked = set(card.get("picked") or [])
+        items = []
+        for option in card["options"]:
+            cls = ' class="pick"' if option["key"] in picked else ""
+            items.append(f'<li{cls}><span class="k">{esc(option["key"])}</span><span>{esc(option["text"])}</span>'
+                         f'<span class="badge {STRENGTHS[option["strength"]]}">{esc(option["strength"])}</span></li>')
+        pick = f'<p class="pickline">Pick: <b>{esc(card["pick"])}</b></p>' if card.get("pick") else ""
+        articles.append(f'<article class="card"><header><span class="id">{esc(card["id"])}</span><h3>{esc(card["title"])}</h3></header>'
+                        f'<p>{esc(card["problem"])}</p><ul class="opts">{"".join(items)}</ul>{pick}</article>')
+    return ('<section>\n  <h2>Ways to close each gap</h2>\n  <p>For each failing path, several fixes, each with a strength. Strong means the code or a '
+            'document already points to it. Worth exploring means someone must confirm who acts or how long to wait. Speculative changes what the '
+            'process means. The highlighted line is the pick. Nothing is changed yet.</p>\n  <div class="cards">\n' + "\n".join(articles) + "\n  </div>\n</section>")
+
+
+def build_report(table: Table, results: List[Result], judgement: dict, short_labels: bool) -> str:
+    with open(TEMPLATE, encoding="utf-8") as handle:
+        template = handle.read()
+    marked = marks(results)
+    failed = [r for r in results if not r.passed]
+    waits = next(r for r in results if r.check == "waits-owned").findings
+    checks = "\n".join(
+        f'    <div class="chk"><span class="tag {"p" if r.passed else "f"}">{"PASS" if r.passed else "FAIL"}</span>'
+        f'<div><span class="n">{r.check}</span><p>{plain_words(table, r, marked)}</p></div></div>' for r in results)
+    legend = {"wait": ('w', "a wait with no owner or no timeout"), "trap": ('t', "a trap: no end can follow"),
+              "loop": ('l', "where a loop that nothing counts starts"), "orphan": ('o', "nothing leads here"), "leak": ('e', "an end with a way out")}
+    legend_html = " ".join(f'<span><span class="st {legend[m][0]}">{ {"w": "amber", "t": "red", "l": "purple", "o": "grey", "e": "blue"}[legend[m][0]] }</span> {legend[m][1]}</span>'
+                           for m in ("wait", "trap", "loop", "orphan", "leak") if m in set(marked.values()))
+    shared = shared_timeouts(table)
+    note = "The checker draws this from the same table it checks."
+    if short_labels:
+        note += " Labels show the event only; the full diagram also carries the actor, the guard and the bound."
+    if shared:
+        target, sources, timeout = next(iter(shared.values()))
+        note += f" The {esc(timeout)} timeout goes out of {len(sources)} states into {esc(target)}; one arrow stands for all of them here."
+    with_evidence = sum(1 for e in table.edges if e.evidence and e.evidence != ["assumed"])
+    trust = [f"The table is a reading of the code. {with_evidence} of {len(table.edges)} rows name a file:line, so each one can be checked.",
+             "The checks are the machine's: every number and line above the cards comes from the table alone."]
+    trust += [esc(x) for x in judgement.get("trust") or []]
+    waits_html = ""
+    if waits:
+        waits_html = (f'<section>\n  <h2>The {len(waits)} {plural(len(waits), "wait", "waits")}</h2>\n  <p>Each state waits on a person or an outside system. '
+                      'Owner told is who the code tells when the state is entered. Timeout is the way out when nobody acts.</p>\n  <div class="tbl"><table>\n'
+                      '    <thead><tr><th>State</th><th>Waits on</th><th>Owner told</th><th>Timeout</th></tr></thead>\n    <tbody>\n      '
+                      + wait_rows(table, results, marked) + "\n    </tbody>\n  </table></div>\n</section>")
+    title = judgement.get("title") or table.name
+    verdict = f"{len(failed)} of {len(results)} checks fail." if failed else "Every path ends."
+    default_lede = f"The {table.name} process as one table of states and transitions, drawn and checked. {verdict}"
+    fields = {
+        "title": esc(title),
+        "description": esc(judgement.get("lede") or f"Every path of {table.name}, checked."),
+        "eyebrow": esc(f"{SKILL_NAME} · {judgement['eyebrow']}" if judgement.get("eyebrow") else f"{SKILL_NAME} · report"),
+        "lede": esc(judgement.get("lede") or default_lede),
+        "source": esc(judgement.get("source") or f"Model: {len(table.states)} states and {len(table.edges)} transitions from the table. Checks: the checker that drew this page."),
+        "n_states": str(len(table.states)), "n_transitions": str(len(table.edges)), "n_ends": str(len(table.ends)),
+        "n_failed": str(len(failed)), "n_checks": str(len(results)), "failed_class": "bad" if failed else "",
+        "n_waits": str(len(waits)), "waits_class": "bad" if waits else "",
+        "seen_section": seen_section(judgement.get("seen"), marked, table),
+        "checks": checks,
+        "diagram_note": note,
+        "legend": legend_html,
+        "diagram": diagram(table, results, short_labels=short_labels, fold_timeouts=True),
+        "waits_section": waits_html,
+        "loops_section": loops_section(table, results, marked),
+        "cards_section": cards_section(judgement.get("cards") or []),
+        "trust": "".join(f"<li>{x}</li>" for x in trust),
+    }
+    page = template
+    for key, value in fields.items():
+        page = page.replace("{{" + key + "}}", value)
+    return page
+
+
 # ---------------------------------------------------------------- cli
 
 def load(path: str) -> Table:
@@ -533,26 +801,61 @@ def load(path: str) -> Table:
         return Table(json.load(handle))
 
 
+def take_flag(argv: List[str], flag: str) -> bool:
+    if flag in argv:
+        argv.remove(flag)
+        return True
+    return False
+
+
+def take_value(argv: List[str], flag: str) -> Optional[str]:
+    if flag not in argv:
+        return None
+    at = argv.index(flag)
+    if at + 1 >= len(argv):
+        raise TableError(f"{flag} needs a value")
+    value = argv[at + 1]
+    del argv[at:at + 2]
+    return value
+
+
 def main(argv: List[str]) -> int:
-    as_json = "--json" in argv
-    argv = [a for a in argv if a != "--json"]
-    if len(argv) != 2 or argv[0] not in ("check", "diagram", "table"):
+    argv = list(argv)
+    try:
+        as_json = take_flag(argv, "--json")
+        short_labels = take_flag(argv, "--short-labels")
+        fold = take_flag(argv, "--shared-timeouts")
+        judgement_path = take_value(argv, "--judgement")
+        out = take_value(argv, "--out")
+    except TableError as error:
+        print(str(error), file=sys.stderr)
+        return 2
+    if len(argv) != 2 or argv[0] not in ("check", "diagram", "table", "report"):
         print(__doc__.strip(), file=sys.stderr)
         return 2
     subcommand, path = argv
     try:
         table = load(path)
-    except (TableError, json.JSONDecodeError, OSError) as error:
-        print(f"cannot read {path}: {error}", file=sys.stderr)
+        judgement = load_judgement(judgement_path) if subcommand == "report" else {}
+    except (TableError, JudgementError, json.JSONDecodeError, OSError) as error:
+        print(f"cannot read {judgement_path if isinstance(error, JudgementError) else path}: {error}", file=sys.stderr)
         return 2
     results = run_checks(table)
     if subcommand == "check":
         print(json.dumps(results_json(table, results), indent=2) if as_json else report(table, results))
         return 0 if all(r.passed for r in results) else 1
     if subcommand == "diagram":
-        print(diagram(table, results))
-    else:
+        print(diagram(table, results, short_labels=short_labels, fold_timeouts=fold))
+    elif subcommand == "table":
         print(markdown_table(table))
+    else:
+        page = build_report(table, results, judgement, short_labels)
+        if out:
+            with open(out, "w", encoding="utf-8") as handle:
+                handle.write(page)
+            print(out)
+        else:
+            print(page, end="")
     return 0
 
 

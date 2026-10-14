@@ -57,11 +57,19 @@ python3 <skill dir>/scripts/every_path.py diagram process.json   # Mermaid state
 python3 <skill dir>/scripts/every_path.py table process.json     # the table as Markdown, with a wait/owner/timeout summary
 ```
 
-Default output to the user: the diagram, then one line per path with no known end, in the words of the checker. Pick the smallest view that makes the point. Three findings fit in a message; more than that earns one HTML report, see [references/options.md](references/options.md).
+In the chat: the diagram, then one line per path with no known end, in the words of the checker. Pick the smallest view that makes the point.
+
+The page the reader keeps comes from the script, so it is the same every run:
+
+```
+python3 <skill dir>/scripts/every_path.py report process.json --judgement judgement.json --out report.html
+```
+
+It fills the numbers, the checks in plain words, the diagram, the waits table and the loop regions from the table. The judgement file carries what needs you: an example the reader saw, the fix cards with a pick, and the trust notes; its format is in [references/report.md](references/report.md). A worker run writes this same HTML to the caller's folder; Markdown is the chat view only.
 
 ### 5. Offer ways to close each path
 
-For each failing path, write two to four ways to close it, each a card with a strength badge and a before/after of the edges that change. The menu per failure type is in [references/options.md](references/options.md). Then ask which one the user wants, and work through the pick with them (the `grilling` skill, when it is installed). When nobody can answer (a worker run, a ticket), write your pick and the order and stop. Change the table first, run the checker again, and only then change the code.
+For each failing path, write two to four ways to close it, each with a strength badge, as a card in the judgement file. The menu per failure type is in [references/options.md](references/options.md). Then ask which one the user wants, and work through the pick with them (the `grilling` skill, when it is installed). When nobody can answer (a worker run, a ticket), write your pick and the order and stop. Change the table first, run the checker again, and only then change the code.
 
 ### 6. Keep it alive
 

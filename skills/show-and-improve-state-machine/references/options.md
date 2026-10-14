@@ -4,10 +4,10 @@ A failing path has more than one fix, and the right one is a product decision, n
 
 ## The card
 
-One card per failing path. In a chat message it is a short Markdown block; in a report it is a section. Either way it carries:
+One card per failing path, as an entry in the judgement file ([report.md](report.md)):
 
-- **The path.** The checker's line, as printed: the state and the edges from the start that reach it.
-- **Two to four options.** Each one has a name, one sentence on what changes, a strength badge, and a before/after of the edges that change (a Mermaid fragment or a `diff` of the table rows). Prose beyond that sentence means the diff was not clear enough.
+- **The path.** The checker's line, as printed, goes in `problem` with the state and the edges from the start that reach it.
+- **Two to four options.** Each one has a key, one sentence on what changes, and a strength badge. In the chat, add a before/after of the edges that change (a Mermaid fragment or a `diff` of the table rows); on the page the diagram above the cards carries that.
 - **A pick.** The option you would take first, and why, in one line.
 
 Badges: `Strong` when the code or a document already implies the fix (a counter exists but is not checked, a runbook names the owner); `Worth exploring` when it fits the process but the user has to confirm who or how long; `Speculative` when it changes what the process means.
@@ -47,8 +47,8 @@ Work from this list, and add what the codebase suggests.
 
 ## When nobody can answer
 
-A worker run, a ticket, a subagent: nobody picks a card. Write the pick and the order you would take them in, say that nobody was asked, and stop. The table, the report and the cards are the deliverables; write them where the caller said, or beside the table when the caller said nothing.
+A worker run, a ticket, a subagent: nobody picks a card. Write the pick and the order you would take them in, say that nobody was asked, and stop. The table, the judgement file and the page from `report` are the deliverables; write them where the caller said, or beside the table when the caller said nothing.
 
-## When to write an HTML report
+## The page
 
-Up to three findings go in the message, each as a short card. Four or more earn one self-contained HTML file in the temp directory (`$TMPDIR`, else `/tmp`), named `<process>-state-machine-<timestamp>.html`, opened for the user, with the path said aloud. A path the caller named wins over this default. A worker run with no user to open a file for writes Markdown in the caller's folder, with the diagram in a fence, unless the caller asked for HTML. The report is the full diagram at the top, one card per finding, and the pick at the end. Keep it static: Mermaid from a CDN for the diagrams, plain CSS, nothing else. Colour only the states the checker marked, in the checker's colours (red trap, amber wait, purple loop, grey orphan, blue leak), so the report and the terminal say the same thing.
+The page is the script's, not yours: `report` writes the same HTML every run from the table and the judgement file, see [report.md](report.md). In the chat, up to three findings go in the message as short cards; the page carries them all. Colour only what the checker marked, in its colours (red trap, amber wait, purple loop, grey orphan, blue leak), so the page and the terminal say the same thing.

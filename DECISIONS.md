@@ -112,3 +112,9 @@ The working name was `every-path-ends`, the property the checker proves. The pub
 ## Laid out as a catalog, `skills/<name>/` (2026-10-14)
 
 The `npx skills` CLI finds a skill at the repo root or under fixed folders such as `skills/<name>/SKILL.md`. The future public repo is a catalog (`bath/skills`), so the skill moved to `skills/show-and-improve-state-machine/` and the tests, evals, README, DECISIONS.md and LICENSE stay at the root. Licence: MIT, in the frontmatter and in `LICENSE`, copyright Miller Bath 2026. The alternative, one repo per skill, was not taken: the owner wants more skills in one place.
+
+## The report page is the script's (2026-10-14)
+
+The HTML report used to be described in one paragraph and written fresh by the agent each run, so no two pages looked alike. Now `report` fills a shipped template (`assets/report.html`) from the table, and a small judgement JSON carries the parts that need an agent: the example the reader saw, the fix cards with a pick, the trust notes. The template loads only Mermaid and the fonts, uses colour tokens with a dark theme, and reads at phone width.
+
+Alternatives: keep the page in prose (rejected: the owner saw one page and wants that page every time); put the judgement inside the table file (rejected: the table is the model and should stay checkable without opinions in it).
