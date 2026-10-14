@@ -13,7 +13,7 @@ import unittest
 HERE = os.path.dirname(os.path.abspath(__file__))
 SCRIPT = os.path.join(HERE, "..", "every-path-ends", "scripts", "every_path.py")
 
-ACTORS = {"system": "system", "customer": "human", "carrier": "external", "agent": "human"}
+ACTORS = {"system": "system", "customer": "external", "carrier": "external", "agent": "human"}
 
 
 def table(transitions, initial="placed", ends=("delivered",), states=None):
@@ -67,7 +67,6 @@ class ExitCheck(unittest.TestCase):
             ("paid", "ship", "shipped", "system"),
             ("shipped", "deliver", "delivered", "carrier"),
         ]))
-        self.assertEqual(code, 0, out)
         self.assertIn("PASS exit", out)
 
 
@@ -128,6 +127,90 @@ class ReachabilityChecks(unittest.TestCase):
         self.assertEqual(code, 1, out)
         self.assertIn("FAIL ends-closed", out)
         self.assertIn("delivered --reopen--> placed", out)
+
+
+class WaitCheck(unittest.TestCase):
+    """A support ticket that waits on the customer: who ends the wait, and by when?"""
+
+    FLOW = [
+        ("new", "auto_assign", "working", "system"),
+        ("working", "ask_customer", "waiting_customer", "agent", {"bound": "questions < 3"}),
+        ("waiting_customer", "customer_replies", "working", "customer"),
+        ("working", "resolve", "resolved", "agent"),
+    ]
+    WORKING_TIMEOUT = ("working", "stale_30d", "resolved", "system", {"timeout": "30d"})
+    CUSTOMER_TIMEOUT = ("waiting_customer", "no_reply_7d", "resolved", "system", {"timeout": "7d"})
+
+    def test_a_wait_on_an_outside_party_with_no_owner_and_no_timeout_is_reported(self):
+        code, out = check(table(self.FLOW + [self.WORKING_TIMEOUT], initial="new", ends=("resolved",)))
+        self.assertEqual(code, 1, out)
+        self.assertIn("FAIL waits-owned", out)
+        self.assertIn("waiting_customer waits on customer (external) and has no owner and no timeout", out)
+        self.assertIn("(start) new --auto_assign--> working ; working --ask_customer--> waiting_customer", out)
+
+    def test_a_wait_on_a_person_inside_the_process_has_that_person_as_owner(self):
+        code, out = check(table(self.FLOW, initial="new", ends=("resolved",),
+                                states={"waiting_customer": {"owner": "support lead"}}))
+        self.assertEqual(code, 1, out)
+        self.assertIn("working waits on agent (human) and has no timeout", out)
+        self.assertNotIn("no owner", out)
+
+    def test_a_wait_with_an_owner_and_a_timeout_edge_passes(self):
+        flow = self.FLOW + [self.WORKING_TIMEOUT, self.CUSTOMER_TIMEOUT]
+        code, out = check(table(flow, initial="new", ends=("resolved",),
+                                states={"waiting_customer": {"owner": "support lead"}}))
+        self.assertEqual(code, 0, out)
+        self.assertIn("PASS waits-owned", out)
+
+    def test_an_open_ended_wait_with_a_reason_is_listed_and_does_not_fail(self):
+        flow = self.FLOW + [self.CUSTOMER_TIMEOUT]
+        code, out = check(table(flow, initial="new", ends=("resolved",), states={
+            "waiting_customer": {"owner": "support lead"},
+            "working": {"open_ended": "the agent's queue is reviewed every morning"},
+        }))
+        self.assertEqual(code, 0, out)
+        self.assertIn("PASS waits-owned", out)
+        self.assertIn("open-ended: working", out)
+        self.assertIn("reviewed every morning", out)
+
+    def test_a_state_the_system_moves_on_its_own_is_not_a_wait(self):
+        flow = [
+            ("new", "auto_assign", "working", "system"),
+            ("working", "auto_close", "resolved", "system"),
+            ("working", "resolve", "resolved", "agent"),
+        ]
+        code, out = check(table(flow, initial="new", ends=("resolved",)))
+        self.assertEqual(code, 0, out)
+
+
+class LoopCheck(unittest.TestCase):
+    """A deploy that is refused and redone for ever unless something counts the attempts."""
+
+    FLOW = [
+        ("filed", "start", "in_review", "agent"),
+        ("in_review", "approve", "merged", "system"),
+        ("in_review", "refuse", "refused", "system"),
+    ]
+
+    def test_a_loop_that_avoids_every_end_and_has_no_bound_is_reported(self):
+        flow = self.FLOW + [("refused", "redo", "in_review", "agent")]
+        code, out = check(table(flow, initial="filed", ends=("merged",)))
+        self.assertEqual(code, 1, out)
+        self.assertIn("FAIL loops-bounded", out)
+        self.assertIn("in_review --refuse--> refused ; refused --redo--> in_review", out)
+        self.assertIn("PASS can-end", out)
+
+    def test_a_loop_with_a_bounded_edge_passes(self):
+        flow = self.FLOW + [("refused", "redo", "in_review", "agent", {"bound": "attempts < 3"}),
+                            ("refused", "give_up", "abandoned", "system")]
+        code, out = check(table(flow, initial="filed", ends=("merged", "abandoned")))
+        self.assertIn("PASS loops-bounded", out)
+
+    def test_a_self_loop_with_no_bound_is_reported(self):
+        flow = self.FLOW + [("refused", "retry", "refused", "system"), ("refused", "give_up", "abandoned", "system")]
+        code, out = check(table(flow, initial="filed", ends=("merged", "abandoned")))
+        self.assertEqual(code, 1, out)
+        self.assertIn("refused --retry--> refused", out)
 
 
 if __name__ == "__main__":

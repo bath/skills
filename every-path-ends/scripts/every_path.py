@@ -132,10 +132,11 @@ class Finding:
 
 
 class Result:
-    def __init__(self, check: str, title: str, findings: List[Finding]) -> None:
+    def __init__(self, check: str, title: str, findings: List[Finding], notes: Optional[List[str]] = None) -> None:
         self.check = check
         self.title = title
         self.findings = findings
+        self.notes = notes or []
 
     @property
     def passed(self) -> bool:
@@ -199,7 +200,94 @@ def check_can_end(table: Table, paths: Dict[str, List[Edge]]) -> Result:
     return Result("can-end", "from every reachable state some end is still reachable", findings)
 
 
-CHECKS = [check_reachable, check_ends_reachable, check_ends_closed, check_exit, check_can_end]
+def is_waiting(table: Table, state: str) -> bool:
+    """A state waits when the only things that move it on are a person or an outside system."""
+    if table.is_end(state):
+        return False
+    movers = [edge for edge in table.out[state] if not edge.timeout]
+    return bool(movers) and all(table.actor_kind(edge) != "system" for edge in movers)
+
+
+def wait_owner(table: Table, state: str) -> Optional[str]:
+    """Who is accountable for ending the wait: the state's declared owner, else a person inside the
+    process whose action ends it. An outside party (external) cannot own a wait."""
+    declared = table.state_info.get(state, {}).get("owner")
+    if declared:
+        return str(declared)
+    humans = sorted({edge.actor for edge in table.out[state] if not edge.timeout and table.actor_kind(edge) == "human"})
+    return ", ".join(humans) if humans else None
+
+
+def check_waits_owned(table: Table, paths: Dict[str, List[Edge]]) -> Result:
+    findings = []
+    notes = []
+    for state in table.states:
+        if state not in paths or not is_waiting(table, state):
+            continue
+        info = table.state_info.get(state, {})
+        movers = [edge for edge in table.out[state] if not edge.timeout]
+        waits_on = ", ".join(f"{actor} ({table.actors[actor]})" for actor in sorted({e.actor for e in movers}))
+        missing = []
+        if wait_owner(table, state) is None:
+            missing.append("no owner")
+        if not any(edge.timeout for edge in table.out[state]):
+            if info.get("open_ended"):
+                notes.append(f"open-ended: {state} waits on {waits_on} with no timeout because {info['open_ended']}")
+            else:
+                missing.append("no timeout")
+        if missing:
+            findings.append(Finding(state, f"{state} waits on {waits_on} and has {' and '.join(missing)}", paths[state]))
+    return Result("waits-owned", "every wait names who ends it and has a timeout out of it", findings, notes)
+
+
+def find_cycle(table: Table, skip_bounded: bool) -> Optional[List[Edge]]:
+    """One cycle through states that are not ends, ignoring bounded edges; None when there is none."""
+    WHITE, GREY, BLACK = 0, 1, 2
+    colour = {s: WHITE for s in table.states}
+    stack: List[Edge] = []
+
+    def visit(state: str) -> Optional[List[Edge]]:
+        colour[state] = GREY
+        for edge in table.out[state]:
+            if table.is_end(edge.target) or (skip_bounded and edge.bound):
+                continue
+            if colour[edge.target] == GREY:
+                # The target is on the current path: the cycle is the path from it, plus this edge.
+                # No edge on the path starts at the target only for a self-loop.
+                start = len(stack)
+                for i, on_path in enumerate(stack):
+                    if on_path.source == edge.target:
+                        start = i
+                        break
+                return stack[start:] + [edge]
+            if colour[edge.target] == WHITE:
+                stack.append(edge)
+                found = visit(edge.target)
+                if found:
+                    return found
+                stack.pop()
+        colour[state] = BLACK
+        return None
+
+    for state in table.states:
+        if colour[state] == WHITE and not table.is_end(state):
+            found = visit(state)
+            if found:
+                return found
+    return None
+
+
+def check_loops_bounded(table: Table, paths: Dict[str, List[Edge]]) -> Result:
+    cycle = find_cycle(table, skip_bounded=True)
+    findings = []
+    if cycle:
+        first = cycle[0].source
+        loop = " ; ".join(str(edge) for edge in cycle)
+        findings.append(Finding(first, f"a loop with no bounded edge: {loop}; nothing counts the attempts, so it can go round for ever", paths.get(first)))
+    return Result("loops-bounded", "every loop that avoids the ends has an edge with a bound", findings)
+
+
+CHECKS = [check_reachable, check_ends_reachable, check_ends_closed, check_exit, check_can_end, check_waits_owned, check_loops_bounded]
 
 
 def run_checks(table: Table) -> List[Result]:
@@ -217,6 +305,8 @@ def report(table: Table, results: List[Result]) -> str:
             lines.append(f"  - {finding.detail}")
             if finding.path is not None:
                 lines.append(f"    path: {format_path(table.initials, finding.path)}")
+        for note in result.notes:
+            lines.append(f"  note {note}")
     failed = [r for r in results if not r.passed]
     lines.append("")
     lines.append("every path ends" if not failed else f"{len(failed)} check(s) failed")
