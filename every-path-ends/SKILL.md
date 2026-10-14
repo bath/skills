@@ -35,7 +35,7 @@ Done when the checker loads the file without a table error.
 python3 <skill dir>/scripts/every_path.py check process.json
 ```
 
-It prints PASS or FAIL for each property and, for each failure, the state and the path from the start that reaches it. `--json` gives the same findings as data. The properties, in the order they print:
+It prints PASS or FAIL for each property and, for each failure, a count line, then the state and the path from the start that reaches it. `--json` gives the same findings as data. When the script cannot run (no interpreter, a denied command), apply [references/checks-by-hand.md](references/checks-by-hand.md) and mark the output hand-checked. The properties, in the order they print:
 
 | Check | Fails when |
 |---|---|
