@@ -109,7 +109,7 @@ class NoPassLineIsFalse(unittest.TestCase):
         ]))
         self.assertIn("FAIL exit", out)
         self.assertIn("FAIL can-end", out)
-        self.assertIn("cancelled can be reached but no end can be reached from it. It is trapped with {cancelled}", out)
+        self.assertIn("cancelled can be reached but no end can be reached from it. It has no way out.", out)
         self.assertNotIn("PASS can-end", out)
 
     def test_the_reachable_sentence_says_it_leaves_the_ends_to_ends_reachable(self):
@@ -419,15 +419,20 @@ class TimeoutCoversAMissingOwner(unittest.TestCase):
         ("unconfirmed", "link_expires_14d", "expired", "system", {"timeout": "14d"}),
     ]
 
+    def with_person(self, flow, ends):
+        data = table(flow, initial="new", ends=ends)
+        data["actors"]["person"] = "external"
+        return data
+
     def test_an_unowned_wait_with_a_timeout_that_reaches_an_end_passes_with_a_note(self):
-        code, out = check(table(self.FLOW, initial="new", ends=("confirmed", "expired")))
+        code, out = check(self.with_person(self.FLOW, ("confirmed", "expired")))
         self.assertEqual(code, 0, out)
         self.assertIn("PASS waits-owned", out)
         self.assertIn("note unowned: unconfirmed waits on person (external) with no owner, but link_expires_14d ends it after 14d", out)
 
     def test_a_timeout_into_a_trap_does_not_cover_the_missing_owner(self):
         flow = self.FLOW + [("expired", "archive", "archived", "system")]  # archived has no exit and is not an end
-        code, out = check(table(flow, initial="new", ends=("confirmed",)))
+        code, out = check(self.with_person(flow, ("confirmed",)))
         self.assertEqual(code, 1, out)
         self.assertIn("unconfirmed waits on person (external) and has no owner and no timeout that reaches an end", out)
 
