@@ -32,7 +32,7 @@ Done when the checker loads the file without a table error.
 ### 3. Run the checker
 
 ```
-python3 scripts/every_path.py check process.json
+python3 <skill dir>/scripts/every_path.py check process.json
 ```
 
 It prints PASS or FAIL for each property and, for each failure, the state and the path from the start that reaches it. `--json` gives the same findings as data. The properties, in the order they print:
@@ -52,8 +52,8 @@ Read every failure before you fix any. One missing edge often explains three fin
 ### 4. Show it
 
 ```
-python3 scripts/every_path.py diagram process.json   # Mermaid stateDiagram-v2, failing states coloured
-python3 scripts/every_path.py table process.json     # the table as Markdown, with a wait/owner/timeout summary
+python3 <skill dir>/scripts/every_path.py diagram process.json   # Mermaid stateDiagram-v2, failing states coloured
+python3 <skill dir>/scripts/every_path.py table process.json     # the table as Markdown, with a wait/owner/timeout summary
 ```
 
 Default output to the user: the diagram, then one line per path with no known end, in the words of the checker. Pick the smallest view that makes the point. Three findings fit in a message; more than that earns one HTML report, see [references/options.md](references/options.md).
