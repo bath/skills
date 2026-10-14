@@ -1,9 +1,9 @@
 ---
-name: every-path-ends
+name: show-and-improve-state-machine
 description: Model a process in a codebase or a document as a state machine and prove that every path ends in a known end state, or list the paths that do not. Use when asked to model a lifecycle, workflow, pipeline, status flow or the life of a piece of work; to find states that are stuck, trapped or unreachable; to find work that waits on nobody; to check that retries are bounded; or to draw a state diagram from code. Also use when a ticket says "show every path that has no known end" or "where can this get stuck".
 ---
 
-# Every path ends
+# Show and improve a state machine
 
 A process is a graph of states. Four things go wrong with such a graph, and all four hide in code that looks finished: a state nothing can leave (a trap), a wait that nobody owns and nothing times out, a loop that nothing counts, and an end state that is only declared. This skill turns the process into one transition table with evidence, runs a checker that finds all four and prints a concrete path to each, and draws the diagram from the same table so the picture cannot drift from the proof.
 

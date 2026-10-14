@@ -2,7 +2,7 @@
 
 Written 2026-10-14 by the agent that built the first version. Each entry is the default it picked, the alternatives, and what reversing it costs. None of these is settled until the owner says so.
 
-## Name: `every-path-ends`
+## Name: `every-path-ends` (superseded, see below)
 
 The skill's name is the property it proves, so a user who types it knows what they asked for, and the phrase appears in the report's last line ("every path ends").
 
@@ -104,3 +104,7 @@ A session that cannot run the script applies `references/checks-by-hand.md` and 
 The audit of the other six sentences changed two: `reachable` now says "every state that is not an end", because an orphan end is `ends-reachable`'s finding; `waits-owned` now says "every reachable wait ... or a written reason to be open-ended", because an unreachable wait is `reachable`'s and an excused wait is a note. `ends-reachable`, `ends-closed`, `exit` and `loops-bounded` test what they say.
 
 Alternative for `can-end`: keep the skip and weaken the sentence to "every reachable state that has a way out". Rejected: a reader then needs two lines to know whether anything is trapped, and the first dogfood run showed that one green line is what gets read.
+
+## Renamed to `show-and-improve-state-machine` (2026-10-14)
+
+The working name was `every-path-ends`, the property the checker proves. The published name says what the skill does for the reader: "show" is the report (the diagram, the checks, the waits), and "improve" is the option cards with a pick. The Agent Skills specification requires `name` to match the folder, so the folder, the frontmatter, the tests, the eval file and every path changed together. The description still opens with the proof claim, so a search for "prove", "stuck" or "end state" finds it. The report's last line still says "every path ends".
