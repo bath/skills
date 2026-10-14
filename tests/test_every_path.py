@@ -109,7 +109,7 @@ class NoPassLineIsFalse(unittest.TestCase):
         ]))
         self.assertIn("FAIL exit", out)
         self.assertIn("FAIL can-end", out)
-        self.assertIn("cancelled can be reached but no end can be reached from it", out)
+        self.assertIn("cancelled can be reached but no end can be reached from it. It is trapped with {cancelled}", out)
         self.assertNotIn("PASS can-end", out)
 
     def test_the_reachable_sentence_says_it_leaves_the_ends_to_ends_reachable(self):
@@ -214,7 +214,7 @@ class WaitCheck(unittest.TestCase):
 
 
 class LoopCheck(unittest.TestCase):
-    """A deploy that is refused and redone for ever unless something counts the attempts."""
+    """A deploy that is refused and redone forever unless something counts the attempts."""
 
     FLOW = [
         ("filed", "start", "in_review", "agent"),
@@ -329,7 +329,7 @@ class LoopRegions(unittest.TestCase):
             ("a", "end", "done", "system"),
         ]
         code, out = check(table(flow, initial="filed", ends=("done",)))
-        self.assertIn("closing edges: b --y--> a ; c --w--> a", out)
+        self.assertIn("Closing edges: b --y--> a ; c --w--> a", out)
 
     def test_one_bound_inside_a_region_leaves_the_other_cycle_reported(self):
         flow = [
@@ -368,8 +368,8 @@ class GuardedSystemExit(unittest.TestCase):
             ("failed", "give_up", "done", "system", {"timeout": "1d"}),
         ]
         code, out = check(table(flow, initial="new", ends=("done",)))
-        self.assertIn("note guarded: checking", out)
-        self.assertIn("the check reported green", out)
+        self.assertIn("note guarded: the system moves checking on only under a guard, pass [the check reported green] "
+                      "or fail [the check reported red]", out)
 
 
 class DiagramLabels(unittest.TestCase):
@@ -393,8 +393,8 @@ class TimeoutIntoATrap(unittest.TestCase):
         code, out = check(table(self.FLOW, initial="new", ends=("resolved",)))
         self.assertEqual(code, 1, out)
         self.assertIn("FAIL waits-owned", out)
-        self.assertIn("working waits on agent (human) and has no timeout that reaches an end "
-                      "(watch_14d leads to expired, from which no end can be reached)", out)
+        self.assertIn("working waits on agent (human) and has no timeout that reaches an end, "
+                      "because watch_14d leads to expired and no end follows from there", out)
 
     def test_a_timeout_into_a_state_that_still_ends_counts(self):
         flow = self.FLOW + [("expired", "archive", "resolved", "system")]
@@ -474,7 +474,7 @@ class Examples(unittest.TestCase):
         self.assertIn("refused is not an end state and has no transition out of it", out)
         self.assertIn("FAIL waits-owned", out)
         self.assertIn("awaiting_approval waits on approver (human) and has no timeout", out)
-        self.assertIn("FAIL loops-bounded", out)   # unhealthy, rolled back, requested again, for ever
+        self.assertIn("FAIL loops-bounded", out)   # unhealthy, rolled back, requested again, forever
 
 
 if __name__ == "__main__":

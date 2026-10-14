@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Check a transition table and draw it. Standard library only; Python 3.9 or later.
+"""Check a transition table, draw it and write its report page. Standard library only, Python 3.9 or later.
 
     every_path.py check   table.json [--json]             # pass or fail per property, a concrete path per failure
     every_path.py diagram table.json [--short-labels] [--shared-timeouts]
@@ -158,7 +158,7 @@ class Result:
         self.title = title
         self.findings = findings
         self.notes = notes or []
-        self.summary = summary or f"{len(findings)} state(s)"
+        self.summary = summary or f"{len(findings)} {plural(len(findings), 'state', 'states')}"
 
     @property
     def passed(self) -> bool:
@@ -175,13 +175,13 @@ def check_exit(table: Table, paths: Dict[str, List[Edge]]) -> Result:
 
 
 def check_reachable(table: Table, paths: Dict[str, List[Edge]]) -> Result:
-    findings = [Finding(s, f"{s} cannot be reached from the start; nothing leads to it", None)
+    findings = [Finding(s, f"nothing leads to {s}, so it cannot be reached from the start", None)
                 for s in table.states if s not in paths and not table.is_end(s)]
     return Result("reachable", "every state that is not an end can be reached from the start", findings)
 
 
 def check_ends_reachable(table: Table, paths: Dict[str, List[Edge]]) -> Result:
-    findings = [Finding(s, f"end state {s} cannot be reached from the start; nothing leads to it", None)
+    findings = [Finding(s, f"nothing leads to end state {s}, so it cannot be reached from the start", None)
                 for s in table.ends if s not in paths]
     return Result("ends-reachable", "every declared end can be reached from the start", findings)
 
@@ -190,7 +190,7 @@ def check_ends_closed(table: Table, paths: Dict[str, List[Edge]]) -> Result:
     findings = []
     for state in table.ends:
         for edge in table.out[state]:
-            findings.append(Finding(state, f"end state {state} has a way out: {edge}; an end that exits is not an end", paths.get(state)))
+            findings.append(Finding(state, f"end state {state} has a way out, {edge}, so it is not an end", paths.get(state)))
     return Result("ends-closed", "no declared end has a transition out of it", findings)
 
 
@@ -219,8 +219,8 @@ def check_can_end(table: Table, paths: Dict[str, List[Edge]]) -> Result:
         # A state with no exit is also the exit check's finding; it is listed here too, so that a
         # PASS on this check means no reachable state is trapped, exits or not.
         region = sorted(s for s in table.states if s not in good and s in paths)
-        findings.append(Finding(state, f"{state} can be reached but no end can be reached from it; "
-                                       f"it is trapped with {{{', '.join(region)}}}", paths[state]))
+        findings.append(Finding(state, f"{state} can be reached but no end can be reached from it. "
+                                       f"It is trapped with {{{', '.join(region)}}}", paths[state]))
     return Result("can-end", "from every reachable state some end is still reachable", findings)
 
 
@@ -264,9 +264,9 @@ def check_waits_owned(table: Table, paths: Dict[str, List[Edge]]) -> Result:
         if not is_waiting(table, state):
             system_exits = [e for e in table.out[state] if not e.timeout and table.actor_kind(e) == "system"]
             if system_exits and all(e.guard for e in system_exits):
-                guards = "; ".join(f"{e.event} [{e.guard}]" for e in system_exits)
-                notes.append(f"guarded: {state} is moved by the system only under a guard ({guards}); "
-                             f"if a guard needs an outside party to act, that party is the actor and the state is a wait")
+                guards = " or ".join(f"{e.event} [{e.guard}]" for e in system_exits)
+                notes.append(f"guarded: the system moves {state} on only under a guard, {guards}. "
+                             f"If a guard needs an outside party to act, that party is the actor and the state is a wait")
             continue
         info = table.state_info.get(state, {})
         movers = [edge for edge in table.out[state] if not edge.timeout]
@@ -282,7 +282,7 @@ def check_waits_owned(table: Table, paths: Dict[str, List[Edge]]) -> Result:
             elif timeouts:
                 # A timer that ends the wait in a trap ends nothing: name it, so the finding is not "add a timeout".
                 dead = ", ".join(f"{e.event} leads to {e.target}" for e in timeouts)
-                missing.append(f"no timeout that reaches an end ({dead}, from which no end can be reached)")
+                missing.append(f"no timeout that reaches an end, because {dead} and no end follows from there")
             else:
                 missing.append("no timeout")
         if missing:
@@ -397,10 +397,10 @@ def check_loops_bounded(table: Table, paths: Dict[str, List[Edge]]) -> Result:
         first = cycle[0].source if cycle else component[0]
         loop = " ; ".join(str(edge) for edge in cycle)
         closing = " ; ".join(str(edge) for edge in closing_edges(component, inside))
-        findings.append(Finding(first, f"a loop with no bounded edge through region {{{', '.join(component)}}}: {loop}; "
-                                       f"nothing counts the attempts, so it can go round for ever; closing edges: {closing}", paths.get(first)))
+        findings.append(Finding(first, f"region {{{', '.join(component)}}} loops with no bounded edge: {loop}. "
+                                       f"Nothing counts the rounds, so it can go round forever. Closing edges: {closing}", paths.get(first)))
     return Result("loops-bounded", "every loop that avoids the ends has an edge with a bound", findings,
-                  summary=f"{len(findings)} loop region(s)")
+                  summary=f"{len(findings)} {plural(len(findings), 'loop region', 'loop regions')}")
 
 
 CHECKS = [check_reachable, check_ends_reachable, check_ends_closed, check_exit, check_can_end, check_waits_owned, check_loops_bounded]
@@ -427,7 +427,7 @@ def report(table: Table, results: List[Result]) -> str:
             lines.append(f"  note {note}")
     failed = [r for r in results if not r.passed]
     lines.append("")
-    lines.append("every path ends" if not failed else f"{len(failed)} check(s) failed")
+    lines.append("every path ends" if not failed else f"{len(failed)} {plural(len(failed), 'check', 'checks')} failed")
     return "\n".join(lines)
 
 
@@ -533,8 +533,8 @@ def diagram(table: Table, results: List[Result], short_labels: bool = False, fol
     return "\n".join(lines)
 
 
-LEGEND = {"trap": "red: no end can follow", "wait": "amber: a wait with no owner or no timeout",
-          "loop": "purple: starts a loop nothing bounds", "orphan": "grey: nothing leads here", "leak": "blue: an end with a way out"}
+LEGEND = {"trap": "red is a trap that no end follows", "wait": "amber is a wait with no owner or no timeout",
+          "loop": "purple starts a loop nothing bounds", "orphan": "grey is a state nothing leads to", "leak": "blue is an end with a way out"}
 
 
 def marks(results: List[Result]) -> Dict[str, str]:
@@ -554,7 +554,7 @@ def markdown_table(table: Table) -> str:
         if isinstance(value, list):
             return "; ".join(value)
         return str(value).replace("|", "\\|")
-    lines = [f"**{table.name}**: starts in {', '.join(table.initials)}; ends in {', '.join(table.ends)}.", "",
+    lines = [f"**{table.name}** starts in {', '.join(table.initials)} and ends in {', '.join(table.ends)}.", "",
              "| From | Event | To | Actor | Guard | Timeout | Bound | Evidence |", "|---|---|---|---|---|---|---|---|"]
     for edge in table.edges:
         lines.append("| " + " | ".join(cell(v) for v in (edge.source, edge.event, edge.target, edge.actor, edge.guard,
@@ -643,7 +643,7 @@ def plain_words(table: Table, result: Result, marked: Dict[str, str]) -> str:
                 else f"{chips(states)} {plural(n, 'is', 'are')} not an end and {plural(n, 'has', 'have')} no way out.")
     if result.check == "can-end":
         return ("From every reachable state, an end can still follow." if result.passed
-                else f"From {chips(states)}, no end can follow: a trap.")
+                else f"No end can follow from {chips(states)}. That is a trap.")
     if result.check == "waits-owned":
         if result.passed:
             return "Every wait has an owner who is told and a timeout that leads to an end, or a written reason to be open-ended."
@@ -698,12 +698,12 @@ def loops_section(table: Table, results: List[Result], marked: Dict[str, str]) -
     blocks = []
     for finding in result.findings:
         states = region_states(finding)
-        cycle = finding.detail.split("}: ", 1)[1].split("; nothing counts", 1)[0]
-        closing = finding.detail.split("closing edges: ", 1)[1] if "closing edges: " in finding.detail else ""
+        cycle = finding.detail.split("no bounded edge: ", 1)[1].split(". Nothing counts", 1)[0]
+        closing = finding.detail.split("Closing edges: ", 1)[1] if "Closing edges: " in finding.detail else ""
         blocks.append(
             f'<div class="region"><div>{len(states)} states: {" ".join(chip(x, marked, table) for x in states)}</div>'
             f"<div>Example: <code>{esc(cycle)}</code></div>"
-            f'<div class="edges">closing edges (a bound on each breaks every loop here): {esc(closing)}</div></div>')
+            f'<div class="edges">A bound on each of these closing edges breaks every loop here: {esc(closing)}</div></div>')
     return ('<section>\n  <h2>Loops nothing counts</h2>\n  <p>A loop that avoids every end goes round until something counts the rounds. '
             'Each region below is one such loop, with the edges that close it.</p>\n  <div class="regions">' + "".join(blocks) + "</div>\n</section>")
 
@@ -739,7 +739,7 @@ def cards_section(cards: List[dict]) -> str:
                         f'<p>{esc(card["problem"])}</p><ul class="opts">{"".join(items)}</ul>{pick}</article>')
     return ('<section>\n  <h2>Ways to close each gap</h2>\n  <p>For each failing path, several fixes, each with a strength. Strong means the code or a '
             'document already points to it. Worth exploring means someone must confirm who acts or how long to wait. Speculative changes what the '
-            'process means. The highlighted line is the pick. Nothing is changed yet.</p>\n  <div class="cards">\n' + "\n".join(articles) + "\n  </div>\n</section>")
+            'process means. The highlighted line is the pick. Nothing has changed yet.</p>\n  <div class="cards">\n' + "\n".join(articles) + "\n  </div>\n</section>")
 
 
 def build_report(table: Table, results: List[Result], judgement: dict, short_labels: bool) -> str:
@@ -751,20 +751,20 @@ def build_report(table: Table, results: List[Result], judgement: dict, short_lab
     checks = "\n".join(
         f'    <div class="chk"><span class="tag {"p" if r.passed else "f"}">{"PASS" if r.passed else "FAIL"}</span>'
         f'<div><span class="n">{r.check}</span><p>{plain_words(table, r, marked)}</p></div></div>' for r in results)
-    legend = {"wait": ('w', "a wait with no owner or no timeout"), "trap": ('t', "a trap: no end can follow"),
+    legend = {"wait": ('w', "a wait with no owner or no timeout"), "trap": ('t', "a trap that no end follows"),
               "loop": ('l', "where a loop that nothing counts starts"), "orphan": ('o', "nothing leads here"), "leak": ('e', "an end with a way out")}
     legend_html = " ".join(f'<span><span class="st {legend[m][0]}">{ {"w": "amber", "t": "red", "l": "purple", "o": "grey", "e": "blue"}[legend[m][0]] }</span> {legend[m][1]}</span>'
                            for m in ("wait", "trap", "loop", "orphan", "leak") if m in set(marked.values()))
     shared = shared_timeouts(table)
     note = "The checker draws this from the same table it checks."
     if short_labels:
-        note += " Labels show the event only; the full diagram also carries the actor, the guard and the bound."
+        note += " Labels show the event only. The full diagram also carries the actor, the guard and the bound."
     if shared:
         target, sources, timeout = next(iter(shared.values()))
-        note += f" After {esc(timeout)}, {len(sources)} states go to {esc(target)}; one arrow stands for all of them here."
+        note += f" After {esc(timeout)}, {len(sources)} states go to {esc(target)}. One arrow stands for all of them here."
     with_evidence = sum(1 for e in table.edges if e.evidence and e.evidence != ["assumed"])
     trust = [f"The table is a reading of the code. {with_evidence} of {len(table.edges)} rows name a file:line, so each one can be checked.",
-             "The checks are the machine's: every number and line above the cards comes from the table alone."]
+             "The checks are the machine's. Every number and line above the cards comes from the table alone."]
     trust += [esc(x) for x in judgement.get("trust") or []]
     waits_html = ""
     if waits:
@@ -782,7 +782,7 @@ def build_report(table: Table, results: List[Result], judgement: dict, short_lab
         "description": esc(judgement.get("lede") or f"Every path of {table.name}, checked."),
         "eyebrow": esc(f"{SKILL_NAME} · {judgement['eyebrow']}" if judgement.get("eyebrow") else f"{SKILL_NAME} · report"),
         "lede": esc(judgement.get("lede") or default_lede),
-        "source": esc(judgement.get("source") or f"Model: {len(table.states)} states and {len(table.edges)} transitions from the table. Checks: the checker that drew this page."),
+        "source": esc(judgement.get("source") or f"{len(table.states)} states and {len(table.edges)} transitions from the table, checked and drawn by the same script."),
         "n_states": str(len(table.states)), "n_transitions": str(len(table.edges)), "n_ends": str(len(table.ends)),
         "n_failed": str(len(failed)), "n_checks": str(len(results)), "failed_class": "bad" if failed else "",
         "n_waits": str(len(waits)), "waits_class": "bad" if waits else "",
