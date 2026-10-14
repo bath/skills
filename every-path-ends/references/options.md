@@ -29,7 +29,7 @@ Work from this list, and add what the codebase suggests.
 **A wait with no end** (`waits-owned`, "no timeout"):
 - Add a timeout edge to a known end (`no_reply_7d` to `closed_no_reply`).
 - Add a timeout edge that escalates (to a state a different person owns), with its own timeout.
-- Mark it `open_ended` with the reason, when a person reviews the queue on a schedule that is itself written down. This is a decision, not a fix; say so. An automated reviewer on a schedule counts only when the step it takes is mechanical or tested; one that has to decide is a wait on that agent.
+- Mark it `open_ended` with the reason, when a person reviews the queue on a schedule that is itself written down. This is a decision, not a fix; say so. An automated reviewer on a schedule counts only when the step it takes is mechanical or tested; one that has to decide is a wait on that agent. Write `open_ended` as a map with `kind` and `evidence` when the reason rests on a recipe or a document rather than code, so the report can list which ends ride on an agent following words.
 
 **A loop nothing counts** (`loops-bounded`):
 - Put a `bound` on the edge that re-enters the loop, backed by a counter the code keeps, and add the edge for when it runs out.

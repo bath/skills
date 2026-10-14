@@ -35,7 +35,7 @@ One JSON file per process. JSON because every language reads it with no extra in
 | Field | Meaning |
 |---|---|
 | `owner` | the person the code tells when the state is entered (a mail, a queue they read, a digest), who is then accountable for ending the wait. Left out, a `human` mover is taken as the owner; write `null` to say that nobody is told, whoever could act. Needed when only `external` actors move it |
-| `open_ended` | a reason this wait may last with no timeout; the checker lists it as a note instead of failing |
+| `open_ended` | a reason this wait may last with no timeout; the checker lists it as a note instead of failing. A string, or a map with `reason`, `kind` (`code`, `timer`, `recipe`, `schedule`, `document`) and `evidence`, so the report shows what the reason rests on: a timer in code, or an agent following words in a recipe |
 | `note` | anything a reader needs, such as the field values that make up a composite state |
 
 ## A transition
