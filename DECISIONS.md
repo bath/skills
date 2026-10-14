@@ -132,3 +132,7 @@ Two test runs had to overrule the checker on the same point. A wait that nobody 
 The reason for the rule is what the owner is for. The owner is the person who ends a wait that would otherwise last. When a clock ends it, there is no such person to name. The note stays, because a reader may still want someone told before the clock runs out.
 
 The alternative was to keep the failure and let the agent mark the state open-ended. That puts a false reason in the table, since the wait is not open-ended at all.
+
+## A trap finding names its own region (2026-10-14)
+
+`can-end` used to list every trapped state in one set, so two dead ends that had nothing to do with each other read as if they formed a cycle together. Now each finding ends in one of three ways. A dead end has no way out. A state in a cycle loops within its own region, which is the set of states that reach each other. A state whose every way out leads into a trap names what follows it. Two unrelated dead ends are two findings, and neither names the other.

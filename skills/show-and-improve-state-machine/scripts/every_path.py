@@ -214,15 +214,38 @@ def can_reach_end(table: Table) -> set:
 def check_can_end(table: Table, paths: Dict[str, List[Edge]]) -> Result:
     good = can_reach_end(table)
     findings = []
-    for state in table.states:
-        if state in good or state not in paths:
-            continue
+    trapped = [s for s in table.states if s not in good and s in paths]
+    inside = [e for e in table.edges if e.source in trapped and e.target in trapped]
+    region_of: Dict[str, List[str]] = {}
+    for component in strongly_connected(table, trapped, inside):
+        for state in component:
+            region_of[state] = component
+    for state in trapped:
         # A state with no exit is also the exit check's finding; it is listed here too, so that a
         # PASS on this check means no reachable state is trapped, exits or not.
-        region = sorted(s for s in table.states if s not in good and s in paths)
-        findings.append(Finding(state, f"{state} can be reached but no end can be reached from it. "
-                                       f"It is trapped with {{{', '.join(region)}}}", paths[state]))
+        region = region_of[state]
+        if len(region) > 1 or any(e.source == state and e.target == state for e in inside):
+            what = f"It loops within {{{', '.join(region)}}} and no end follows."
+        elif not table.out[state]:
+            what = "It has no way out."
+        else:
+            after = sorted(trapped_after(table, state, trapped), key=table.states.index)
+            what = f"Everything after it is trapped too: {{{', '.join(after)}}}."
+        findings.append(Finding(state, f"{state} can be reached but no end can be reached from it. {what}", paths[state]))
     return Result("can-end", "from every reachable state some end is still reachable", findings)
+
+
+def trapped_after(table: Table, state: str, trapped: List[str]) -> List[str]:
+    """The trapped states a walk from `state` reaches, without `state` itself."""
+    seen = set()
+    queue = deque([state])
+    while queue:
+        here = queue.popleft()
+        for edge in table.out[here]:
+            if edge.target in trapped and edge.target not in seen and edge.target != state:
+                seen.add(edge.target)
+                queue.append(edge.target)
+    return list(seen)
 
 
 def is_waiting(table: Table, state: str) -> bool:
