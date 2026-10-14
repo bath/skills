@@ -1,6 +1,6 @@
 # The transition table
 
-One JSON file per process. JSON because every language reads it with no extra install, and because the checker is standard-library Python.
+One JSON file per process. JSON, because every language reads it with nothing installed, and the checker is standard-library Python.
 
 ```json
 {
@@ -23,19 +23,19 @@ One JSON file per process. JSON because every language reads it with no extra in
 
 | Field | Required | Meaning |
 |---|---|---|
-| `name` | no | what the process is called in the report |
-| `initial` | yes | the state a new instance starts in; a list when there are several |
+| `name` | no | what the report calls the process |
+| `initial` | yes | the state a new instance starts in. A list when there are several |
 | `ends` | yes | the states the process is allowed to stop in |
-| `actors` | yes | actor name to kind: `system`, `human` or `external` (see extraction.md for the rule) |
-| `states` | no | extra detail per state (below); a state named only here is an orphan unless an edge reaches it |
+| `actors` | yes | actor name to kind, one of `system`, `human` or `external`. The rule for choosing is in extraction.md |
+| `states` | no | extra detail per state, below. A state named only here is an orphan unless an edge reaches it |
 | `transitions` | yes | the rows |
 
 ## A state's details
 
 | Field | Meaning |
 |---|---|
-| `owner` | the person the code tells when the state is entered (a mail, a queue they read, a digest), who is then accountable for ending the wait. Left out, a `human` mover is taken as the owner; write `null` to say that nobody is told, whoever could act. Needed when only `external` actors move it |
-| `open_ended` | a reason this wait may last with no timeout; the checker lists it as a note instead of failing. A string, or a map with `reason`, `kind` (`code`, `timer`, `recipe`, `schedule`, `document`) and `evidence`, so the report shows what the reason rests on: a timer in code, or an agent following words in a recipe |
+| `owner` | the person the code tells when the state is entered, by a mail, a queue they read or a digest. That person is accountable for ending the wait. Left out, a `human` mover is the owner. Write `null` to say that nobody is told, whoever could act. Required when only `external` actors move the state |
+| `open_ended` | a reason this wait may last with no timeout. The checker lists it as a note instead of failing. A string, or a map with `reason`, `kind` and `evidence`, where `kind` is `code`, `timer`, `recipe`, `schedule` or `document`. The report then shows what the reason rests on, a timer in code or an agent following words in a recipe |
 | `note` | anything a reader needs, such as the field values that make up a composite state |
 
 ## A transition
@@ -43,16 +43,16 @@ One JSON file per process. JSON because every language reads it with no extra in
 | Field | Required | Meaning |
 |---|---|---|
 | `from` | yes | the state before |
-| `on` | yes | the event; a short name a log line could carry |
+| `on` | yes | the event, as a short name a log line could carry |
 | `to` | yes | the state after |
-| `actor` | yes | who causes the event; a key of `actors` |
+| `actor` | yes | who causes the event, as a key of `actors` |
 | `guard` | no | the condition that must hold, in words or in the code's own expression |
-| `timeout` | no | the duration after which this edge fires on its own (`24h`, `7d`); marks the edge as the state's way out when nobody acts |
-| `bound` | no | the counter or budget that limits how often this edge fires (`attempts < 3`); one bounded edge per loop is enough |
-| `evidence` | no, but write it | `path:line`, `path:start-end` or `path#heading`; a string or a list |
+| `timeout` | no | the duration after which this edge fires on its own, such as `24h` or `7d`. It marks the edge as the state's way out when nobody acts |
+| `bound` | no | the counter or budget that limits how often this edge fires, such as `attempts < 3`. One bounded edge per loop is enough |
+| `evidence` | no, but write it | `path:line`, `path:start-end` or `path#heading`, as a string or a list |
 | `note` | no | anything else |
 
-States are named by their appearance in `initial`, `ends`, `states` and the rows; there is no separate list to keep in step.
+The states are the names that appear in `initial`, `ends`, `states` and the rows. There is no separate list to keep in step.
 
 ## Names
 
