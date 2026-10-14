@@ -9,7 +9,7 @@
     "ci": "external"
   },
   "states": {
-    "awaiting_approval": {"note": "a person must click approve; nothing names who"}
+    "awaiting_approval": {"note": "a person must click approve, and nothing names who"}
   },
   "transitions": [
     {"from": "requested", "on": "build", "to": "building", "actor": "system", "evidence": "pipeline.yml:12"},
