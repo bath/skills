@@ -78,3 +78,21 @@ Alternative: require a declared owner on every wait. Honest, but it makes the ag
 ### The checker notes a state the system leaves only under guards
 
 A `system` edge with a guard that only an outside party can satisfy hides a wait. The checker cannot read the guard, so it prints a `guarded:` note for every state whose system exits are all guarded, and the extraction reference says how to re-attribute the edge. A warning that fails the run was the alternative; too many honest system edges carry a guard.
+
+## Added after the second dogfood run, the card view (2026-10-14)
+
+### A timeout counts only when its target can still reach an end
+
+A watch that stops drawing a view after 14 days led every wait to one state nothing leaves. Every wait then passed `waits-owned`, and only `exit` named the trap. Now a timeout edge satisfies the check only when its target is in the set of states that can reach an end. A timeout into a trap is named in the finding ("no timeout that reaches an end (watch_14d leads to card_expired, ...)"), so the fix reads as "give the trap an exit", not "add a timeout".
+
+Alternative: a separate check, "timeout leads to a trap". It would print the same states twice (once under `exit` or `can-end`, once under the new check) and leave `waits-owned` green, which is the misleading part.
+
+### `open_ended` can be a map with `kind` and `evidence`
+
+An open-ended reason that rests on recipe text (an agent following words) is weaker than one that rests on a timer in code. The string form stays; the map form adds `kind` (code, timer, recipe, schedule, document) and `evidence`, and the note and the table view print them.
+
+Alternative: a top-level `evidence_kind` on every row. Heavier, and the row's `evidence` path already says what it is for a transition; the distinction only matters for a wait that is excused.
+
+### Hand checks are a reference file, not a mode of the script
+
+A session that cannot run the script applies `references/checks-by-hand.md` and marks the output hand-checked. The file mirrors the script's walks and line shapes, so a hand result and a machine result can be diffed. The alternative, a JavaScript port for sessions with Node and no Python, was not taken: the second run's problem was a denied command, not a missing interpreter.
