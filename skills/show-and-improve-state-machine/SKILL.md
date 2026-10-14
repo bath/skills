@@ -1,7 +1,7 @@
 ---
 name: show-and-improve-state-machine
 license: MIT
-description: Model a process in a codebase or a document as a state machine and prove that every path ends in a known end state, or list the paths that do not. Use when asked to model a lifecycle, workflow, pipeline, status flow or the life of a piece of work. Also use to find states that are stuck, trapped or unreachable, to find work that waits on nobody, to check that retries are bounded, or to draw a state diagram from code. A ticket that says "show every path that has no known end" or "where can this get stuck" is this skill too.
+description: Model a process in a codebase or a document as a state machine and prove that every path ends in a known end state, or list the paths that do not. Use when asked to model a lifecycle, workflow, pipeline, status flow or the life of a piece of work. Also use to find states that are stuck, trapped or unreachable, to find work that waits on nobody, to check that retries are bounded, or to draw a state diagram from code. Also use it when a ticket asks to "show every path that has no known end" or "where can this get stuck".
 ---
 
 # Show and improve a state machine
@@ -16,7 +16,7 @@ Four defects hide in a process that looks finished. A state nothing can leave. A
 
 Read [references/extraction.md](references/extraction.md) before you open the code. It says where a lifecycle hides, how to tell a state from an event, and what to do when the real state is spread over several fields.
 
-You are done when every writer of the state is in the table with a `file:line`, every event that moves it has a row, timers, webhooks and queue consumers included, and you can say for each state who moves it on.
+You are done when every writer of the state is in the table with a `file:line` and every event that moves it has a row. Timers, webhooks and queue consumers count as events. For each state, you should be able to say who moves it on.
 
 ### 2. Write the table
 
