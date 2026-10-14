@@ -136,3 +136,9 @@ The alternative was to keep the failure and let the agent mark the state open-en
 ## A trap finding names its own region (2026-10-14)
 
 `can-end` used to list every trapped state in one set, so two dead ends that had nothing to do with each other read as if they formed a cycle together. Now each finding ends in one of three ways. A dead end has no way out. A state in a cycle loops within its own region, which is the set of states that reach each other. A state whose every way out leads into a trap names what follows it. Two unrelated dead ends are two findings, and neither names the other.
+
+## The report loads one pinned Mermaid file and no fonts
+
+The report used to import `mermaid@11` from jsDelivr and the IBM Plex fonts from Google Fonts. The skills.sh audit by Snyk flagged that as an unverifiable outside dependency, and it had a point. A floating major version runs whatever the CDN serves under that tag. The template now loads Mermaid 11.17.2 by its exact path with a `sha384` integrity hash, so the browser refuses any other file, and it uses system fonts. Mermaid 11.17.2 shipped on 2026-08-25, well past a 30-day cooldown.
+
+The other choices were to ship Mermaid inside the skill, which adds 3.5 MB, or to draw the diagram as SVG in the script, which means writing a graph layout. Neither is worth it while one hashed file does the job. To move to a newer Mermaid, change the version in `assets/report.html`, compute the new hash with `curl -sL <url> | openssl dgst -sha384 -binary | base64`, and update the test that pins it.

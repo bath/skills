@@ -5,8 +5,6 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>{{title}}</title>
 <meta name="description" content="{{description}}">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans+Condensed:wght@600;700&family=IBM+Plex+Sans:ital,wght@0,400;0,600;1,400&display=swap">
 <style>
 /* One reading column of a checker's report. The state colours carry the meaning everywhere.
    amber a wait, red a trap, purple a loop, green an end. Tokens on :root, redefined for dark. */
@@ -18,9 +16,9 @@
   --wait:#8a6400; --wait-bg:#fff3cd;
   --loop:#59359a; --loop-bg:#ece4f7;
   --chat:#e9eef6;
-  --display:"IBM Plex Sans Condensed","Arial Narrow",Arial,sans-serif;
-  --body:"IBM Plex Sans",-apple-system,"Segoe UI",Roboto,sans-serif;
-  --mono:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
+  --display:"Avenir Next Condensed","Roboto Condensed","Arial Narrow",system-ui,sans-serif;
+  --body:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  --mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
 }
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
   --bg:#12151b; --panel:#1a1e26; --fg:#e6e9ef; --muted:#9aa3b2; --rule:#2c323d; --accent:#8aa8ff;
@@ -89,8 +87,8 @@ td.no{color:var(--fail);font-weight:600}
 .note{background:var(--panel);border-left:3px solid var(--accent);padding:12px 14px;border-radius:0 8px 8px 0;font-size:.92rem;display:grid;gap:6px}
 ul.plain{margin:0;padding-left:18px;display:grid;gap:4px;max-width:66ch}
 </style>
-<script type="module">
-import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs";
+<script src="https://cdn.jsdelivr.net/npm/mermaid@11.17.2/dist/mermaid.min.js" integrity="sha384-EOXBFmc3gx5mb+vn0vPvvGqACToJD24hhacX5Yx+8NUUQrHIle/Qi5Bg9o3zKwW2" crossorigin="anonymous"></script>
+<script>
 mermaid.initialize({ startOnLoad: true, theme: "neutral", securityLevel: "strict" });
 </script>
 </head>

@@ -81,10 +81,11 @@ class ReportFromTheTable(unittest.TestCase):
         # the loop region
         self.assertIn("<h2>Loops nothing counts</h2>", html)
         self.assertIn("closing edges", html)
-        # only Mermaid and Google Fonts leave the page
+        # only one pinned Mermaid file leaves the page, and the browser checks its hash
         self.assertNotIn("tailwind", html)
-        self.assertIn("https://cdn.jsdelivr.net/npm/mermaid@11", html)
-        self.assertIn("fonts.googleapis.com", html)
+        self.assertNotIn("fonts.googleapis.com", html)
+        self.assertIn('src="https://cdn.jsdelivr.net/npm/mermaid@11.17.2/dist/mermaid.min.js" integrity="sha384-', html)
+        self.assertEqual(1, html.count("https://"), "a second outside URL in the page")
 
     def test_without_a_judgement_file_the_judged_sections_are_absent(self):
         code, html, err = run(["report", DEPLOY])
