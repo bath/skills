@@ -47,7 +47,7 @@ It prints PASS or FAIL for each property and, for each failure, the state and th
 | `waits-owned` | a state only a person or an outside party can move has no owner, or no timeout edge |
 | `loops-bounded` | a loop that avoids every end has no edge with a `bound` |
 
-Read every failure before you fix any. One missing edge often explains three findings.
+`loops-bounded` prints one finding per region of states that loop among themselves, with one example cycle; a region can hold more cycles than the example, so run again after each bound. Read every failure before you fix any. One missing edge often explains three findings.
 
 ### 4. Show it
 
@@ -60,7 +60,7 @@ Default output to the user: the diagram, then one line per path with no known en
 
 ### 5. Offer ways to close each path
 
-For each failing path, write two to four ways to close it, each a card with a strength badge and a before/after of the edges that change. The menu per failure type is in [references/options.md](references/options.md). Then ask which one the user wants, and work through the pick with them (the `grilling` skill, when it is installed). Change the table first, run the checker again, and only then change the code.
+For each failing path, write two to four ways to close it, each a card with a strength badge and a before/after of the edges that change. The menu per failure type is in [references/options.md](references/options.md). Then ask which one the user wants, and work through the pick with them (the `grilling` skill, when it is installed). When nobody can answer (a worker run, a ticket), write your pick and the order and stop. Change the table first, run the checker again, and only then change the code.
 
 ### 6. Keep it alive
 

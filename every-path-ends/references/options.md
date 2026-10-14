@@ -29,7 +29,7 @@ Work from this list, and add what the codebase suggests.
 **A wait with no end** (`waits-owned`, "no timeout"):
 - Add a timeout edge to a known end (`no_reply_7d` to `closed_no_reply`).
 - Add a timeout edge that escalates (to a state a different person owns), with its own timeout.
-- Mark it `open_ended` with the reason, when a person reviews the queue on a schedule that is itself written down. This is a decision, not a fix; say so.
+- Mark it `open_ended` with the reason, when a person reviews the queue on a schedule that is itself written down. This is a decision, not a fix; say so. An automated reviewer on a schedule counts only when the step it takes is mechanical or tested; one that has to decide is a wait on that agent.
 
 **A loop nothing counts** (`loops-bounded`):
 - Put a `bound` on the edge that re-enters the loop, backed by a counter the code keeps, and add the edge for when it runs out.
@@ -45,6 +45,10 @@ Work from this list, and add what the codebase suggests.
 - Take it off `ends` and model what follows.
 - Keep it as an end and put the leaking edge out of scope with a `note` that says why (a manual reopen by an operator, say). Only when the edge is truly outside the process.
 
+## When nobody can answer
+
+A worker run, a ticket, a subagent: nobody picks a card. Write the pick and the order you would take them in, say that nobody was asked, and stop. The table, the report and the cards are the deliverables; write them where the caller said, or beside the table when the caller said nothing.
+
 ## When to write an HTML report
 
-Up to three findings go in the message, each as a short card. Four or more earn one self-contained HTML file in the temp directory (`$TMPDIR`, else `/tmp`), named `every-path-ends-<process>-<timestamp>.html`, opened for the user, with the path said aloud. The report is the full diagram at the top, one card per finding, and the pick at the end. Keep it static: Mermaid from a CDN for the diagrams, plain CSS, nothing else. Colour only the states the checker marked, in the checker's colours (red trap, amber wait, purple loop, grey orphan, blue leak), so the report and the terminal say the same thing.
+Up to three findings go in the message, each as a short card. Four or more earn one self-contained HTML file in the temp directory (`$TMPDIR`, else `/tmp`), named `every-path-ends-<process>-<timestamp>.html`, opened for the user, with the path said aloud. A path the caller named wins over this default. The report is the full diagram at the top, one card per finding, and the pick at the end. Keep it static: Mermaid from a CDN for the diagrams, plain CSS, nothing else. Colour only the states the checker marked, in the checker's colours (red trap, amber wait, purple loop, grey orphan, blue leak), so the report and the terminal say the same thing.

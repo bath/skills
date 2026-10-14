@@ -43,6 +43,13 @@ The classification drives the `waits-owned` check: a state that only `human` or 
 
 A polling loop that reads an outside system is `external`, not `system`: the loop runs, but the outside system decides when anything changes. A timer that gives up after a limit is `system` and carries `timeout`.
 
+Two cases that look like `system` and are not:
+
+- A `system` edge whose guard can only become true by an outside action (`refuse` when "the check reported red") is that outside party's edge. The code runs every cycle, but it gives the same answer until the party acts, so the state waits on the party. The checker prints a `guarded:` note on a state the system leaves only under guards, so you can look again.
+- The actor's own process dying (a session that exits before it reports, a worker that crashes) is the actor's event, with the actor's kind. Nothing can rely on a crash, so the state stays a wait.
+
+An automated agent on a timer (a patrol, a bot session with a recipe) is `human` when it has to decide what to do, and `system` only when its step is mechanical and tested. Its waits need the same owner and timeout as a person's.
+
 ## Evidence
 
 Every row carries `evidence`: a `path:line` or `path:start-end` for code, a `path#heading` for a document. One row can carry several. Evidence is what lets a reviewer check a row in thirty seconds, and what lets the next agent regenerate the table after the code moves. A row with no evidence is a guess; mark it `"evidence": "assumed"` and say so in the output, so the user can confirm or strike it.
