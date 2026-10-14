@@ -153,7 +153,7 @@ class WaitCheck(unittest.TestCase):
                                 states={"waiting_customer": {"owner": "support lead"}}))
         self.assertEqual(code, 1, out)
         self.assertIn("working waits on agent (human) and has no timeout", out)
-        self.assertNotIn("no owner", out)
+        self.assertNotIn("has no owner", out)
 
     def test_a_wait_with_an_owner_and_a_timeout_edge_passes(self):
         flow = self.FLOW + [self.WORKING_TIMEOUT, self.CUSTOMER_TIMEOUT]

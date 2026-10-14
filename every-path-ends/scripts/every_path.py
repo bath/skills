@@ -132,11 +132,13 @@ class Finding:
 
 
 class Result:
-    def __init__(self, check: str, title: str, findings: List[Finding], notes: Optional[List[str]] = None) -> None:
+    def __init__(self, check: str, title: str, findings: List[Finding], notes: Optional[List[str]] = None,
+                 summary: Optional[str] = None) -> None:
         self.check = check
         self.title = title
         self.findings = findings
         self.notes = notes or []
+        self.summary = summary or f"{len(findings)} state(s)"
 
     @property
     def passed(self) -> bool:
@@ -251,7 +253,10 @@ def check_waits_owned(table: Table, paths: Dict[str, List[Edge]]) -> Result:
                 missing.append("no timeout")
         if missing:
             findings.append(Finding(state, f"{state} waits on {waits_on} and has {' and '.join(missing)}", paths[state]))
-    return Result("waits-owned", "every wait names who ends it and has a timeout out of it", findings, notes)
+    no_owner = sum(1 for f in findings if "no owner" in f.detail)
+    no_timeout = sum(1 for f in findings if "no timeout" in f.detail)
+    summary = f"{len(findings)} waits: {no_owner} with no owner, {no_timeout} with no timeout"
+    return Result("waits-owned", "every wait names who ends it and has a timeout out of it", findings, notes, summary)
 
 
 def strongly_connected(table: Table, nodes: List[str], edges: List[Edge]) -> List[List[str]]:
@@ -359,7 +364,8 @@ def check_loops_bounded(table: Table, paths: Dict[str, List[Edge]]) -> Result:
         closing = " ; ".join(str(edge) for edge in closing_edges(component, inside))
         findings.append(Finding(first, f"a loop with no bounded edge through region {{{', '.join(component)}}}: {loop}; "
                                        f"nothing counts the attempts, so it can go round for ever; closing edges: {closing}", paths.get(first)))
-    return Result("loops-bounded", "every loop that avoids the ends has an edge with a bound", findings)
+    return Result("loops-bounded", "every loop that avoids the ends has an edge with a bound", findings,
+                  summary=f"{len(findings)} loop region(s)")
 
 
 CHECKS = [check_reachable, check_ends_reachable, check_ends_closed, check_exit, check_can_end, check_waits_owned, check_loops_bounded]
@@ -376,6 +382,8 @@ def report(table: Table, results: List[Result]) -> str:
     for result in results:
         mark = "PASS" if result.passed else "FAIL"
         lines.append(f"{mark} {result.check}: {result.title}")
+        if not result.passed:
+            lines.append(f"  {result.summary}")
         for finding in result.findings:
             lines.append(f"  - {finding.detail}")
             if finding.path is not None:
