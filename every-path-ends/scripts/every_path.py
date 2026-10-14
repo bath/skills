@@ -15,6 +15,9 @@ from collections import deque
 from typing import Dict, List, Optional, Tuple
 
 ACTOR_KINDS = ("system", "human", "external")
+# What an open-ended wait's reason rests on: code or a timer the kernel runs, a recipe an agent follows,
+# a schedule a person keeps, or a document that says so.
+EVIDENCE_KINDS = ("code", "timer", "recipe", "schedule", "document")
 
 
 class TableError(Exception):
@@ -64,6 +67,18 @@ class Table:
         if not isinstance(states, dict):
             raise TableError("'states' must be a map of state name to its details")
         self.state_info: Dict[str, dict] = states
+        for name, info in states.items():
+            if not isinstance(info, dict):
+                raise TableError(f"state {name!r}: details must be a map")
+            open_ended = info.get("open_ended")
+            if isinstance(open_ended, dict):
+                if not open_ended.get("reason"):
+                    raise TableError(f"state {name!r}: open_ended needs a 'reason'")
+                kind = open_ended.get("kind")
+                if kind is not None and kind not in EVIDENCE_KINDS:
+                    raise TableError(f"state {name!r}: open_ended kind must be one of {', '.join(EVIDENCE_KINDS)}, not {kind!r}")
+            elif open_ended is not None and not isinstance(open_ended, str):
+                raise TableError(f"state {name!r}: open_ended is a reason, or a map with reason, kind and evidence")
         rows = data.get("transitions")
         if not isinstance(rows, list) or not rows:
             raise TableError("needs 'transitions': a non-empty list")
@@ -210,6 +225,17 @@ def is_waiting(table: Table, state: str) -> bool:
     return bool(movers) and all(table.actor_kind(edge) != "system" for edge in movers)
 
 
+def open_ended_text(info: dict) -> Optional[str]:
+    """The reason a wait may last, with what kind of evidence it rests on; None when the state is not open-ended."""
+    value = info.get("open_ended")
+    if not value:
+        return None
+    if isinstance(value, str):
+        return f"open-ended: {value}"
+    tag = ", ".join(str(v) for v in (value.get("kind"), value.get("evidence")) if v)
+    return f"open-ended ({tag}): {value['reason']}" if tag else f"open-ended: {value['reason']}"
+
+
 def wait_owner(table: Table, state: str) -> Optional[str]:
     """Who is accountable for ending the wait: the state's declared owner, else a person inside the
     process whose action ends it. An outside party (external) cannot own a wait."""
@@ -244,7 +270,8 @@ def check_waits_owned(table: Table, paths: Dict[str, List[Edge]]) -> Result:
         timeouts = [edge for edge in table.out[state] if edge.timeout]
         if not any(edge.target in good for edge in timeouts):
             if info.get("open_ended"):
-                notes.append(f"open-ended: {state} waits on {waits_on} with no timeout because {info['open_ended']}")
+                label, reason = open_ended_text(info).split(": ", 1)
+                notes.append(f"{label}: {state} waits on {waits_on} with no timeout because {reason}")
             elif timeouts:
                 # A timer that ends the wait in a trap ends nothing: name it, so the finding is not "add a timeout".
                 dead = ", ".join(f"{e.event} leads to {e.target}" for e in timeouts)
@@ -491,7 +518,7 @@ def markdown_table(table: Table) -> str:
             timeouts = ", ".join(f"{e.event} after {e.timeout}" for e in table.out[state] if e.timeout)
             info = table.state_info.get(state, {})
             if not timeouts and info.get("open_ended"):
-                timeouts = f"open-ended: {info['open_ended']}"
+                timeouts = open_ended_text(info)
             lines.append(f"| {state} | {cell(wait_owner(table, state))} | {cell(timeouts)} |")
     return "\n".join(lines)
 
