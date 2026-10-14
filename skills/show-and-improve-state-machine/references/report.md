@@ -1,6 +1,6 @@
 # The report page
 
-One self-contained HTML file, the same shape every run, written by the checker:
+One self-contained HTML file, the same shape every run, written by the checker at the end of every run:
 
 ```
 python3 <skill dir>/scripts/every_path.py report process.json --judgement judgement.json --out report.html [--short-labels]
@@ -24,6 +24,10 @@ The parts that need judgement are yours to write, in one JSON file. Every field 
     "state": "shipped",
     "text": ["What the model says about that line, in one or two short paragraphs."]
   },
+  "waits": {
+    "shipped": "Shipped, no scan yet",
+    "awaiting_payment": "Payment pending"
+  },
   "cards": [
     {
       "id": "F1",
@@ -46,11 +50,12 @@ The parts that need judgement are yours to write, in one JSON file. Every field 
 |---|---|
 | `title`, `eyebrow`, `lede`, `source` | the page's head. `eyebrow` is appended to the skill's name. Left out, the script writes them from the table |
 | `seen` | an example the reader met: the lines of a message or a row, the state it is in, and what the model says. `lines[0]` is drawn bold |
+| `waits` | state name to what the reader sees in that state ("Refused (your card)"). Given, the waits table gets a "What the reader sees" column; a wait left out gets an empty cell |
 | `cards` | one per failing path, in the order to read them. `strength` is `Strong`, `Worth exploring` or `Speculative`, as options.md defines them. `picked` lists the option keys to highlight; `pick` is the line under the card |
 | `trust` | notes on how far to trust the page: what was not seen in practice, what a hand check differed on. The script adds its own two lines first |
 
 Text is escaped on the way in; write plain sentences, not HTML.
 
-## In a worker run
+## Where the page goes
 
-Write the judgement file beside the table, run `report` with `--out` into the caller's folder, and name the path in the reply. Markdown is the chat view only: the diagram in a fence and one line per path with no end.
+In an interactive run, write the page to a temp directory (`mktemp -d`), open it (`open` on macOS, `xdg-open` on Linux) and say the path in the chat. In a worker run, write the judgement file beside the table, run `report` with `--out` into the caller's folder, and name the path in the reply. Either way the chat message is short: the path, then one line per path with no end.

@@ -50,26 +50,26 @@ It prints PASS or FAIL for each property and, for each failure, a count line, th
 
 `loops-bounded` prints one finding per region of states that loop among themselves, with one example cycle; a region can hold more cycles than the example, so run again after each bound. Read every failure before you fix any. One missing edge often explains three findings.
 
-### 4. Show it
+### 4. Offer ways to close each path
 
-```
-python3 <skill dir>/scripts/every_path.py diagram process.json   # Mermaid stateDiagram-v2, failing states coloured
-python3 <skill dir>/scripts/every_path.py table process.json     # the table as Markdown, with a wait/owner/timeout summary
-```
+For each failing path, write two to four ways to close it, each with a strength badge, as a card in the judgement file; its format is in [references/report.md](references/report.md). The menu per failure type is in [references/options.md](references/options.md). Then ask which one the user wants, and work through the pick with them (the `grilling` skill, when it is installed). When nobody can answer (a worker run, a ticket), write your pick and the order and stop. Change the table first, run the checker again, and only then change the code.
 
-In the chat: the diagram, then one line per path with no known end, in the words of the checker. Pick the smallest view that makes the point.
+### 5. Write the report page
 
-The page the reader keeps comes from the script, so it is the same every run:
+Every run ends here, whatever the checker found:
 
 ```
 python3 <skill dir>/scripts/every_path.py report process.json --judgement judgement.json --out report.html
 ```
 
-It fills the numbers, the checks in plain words, the diagram, the waits table and the loop regions from the table. The judgement file carries what needs you: an example the reader saw, the fix cards with a pick, and the trust notes; its format is in [references/report.md](references/report.md). A worker run writes this same HTML to the caller's folder; Markdown is the chat view only.
+The script fills the numbers, the checks in plain words, the diagram, the waits table and the loop regions from the table. The judgement file carries what needs you: an example the reader saw, what the reader sees in each wait, the fix cards with a pick, and the trust notes. In an interactive run, write the page to a temp directory (`mktemp -d`), open it (`open` on macOS, `xdg-open` on Linux), and say the path. In a worker run, write it to the caller's folder and name the path in the reply.
 
-### 5. Offer ways to close each path
+The chat message stays short: the path to the page, then one line per path with no known end, in the words of the checker. When someone asks for a chat view, `diagram` prints the Mermaid with failing states coloured and `table` prints the table as Markdown:
 
-For each failing path, write two to four ways to close it, each with a strength badge, as a card in the judgement file. The menu per failure type is in [references/options.md](references/options.md). Then ask which one the user wants, and work through the pick with them (the `grilling` skill, when it is installed). When nobody can answer (a worker run, a ticket), write your pick and the order and stop. Change the table first, run the checker again, and only then change the code.
+```
+python3 <skill dir>/scripts/every_path.py diagram process.json
+python3 <skill dir>/scripts/every_path.py table process.json
+```
 
 ### 6. Keep it alive
 

@@ -47,8 +47,8 @@ Work from this list, and add what the codebase suggests.
 
 ## When nobody can answer
 
-A worker run, a ticket, a subagent: nobody picks a card. Write the pick and the order you would take them in, say that nobody was asked, and stop. The table, the judgement file and the page from `report` are the deliverables; write them where the caller said, or beside the table when the caller said nothing.
+A worker run, a ticket, a subagent: nobody picks a card. Write the pick and the order you would take them in, say that nobody was asked, and stop. The table, the judgement file and the page from `report` are the deliverables; write them in the caller's folder, or beside the table when the caller said nothing.
 
 ## The page
 
-The page is the script's, not yours: `report` writes the same HTML every run from the table and the judgement file, see [report.md](report.md). In the chat, up to three findings go in the message as short cards; the page carries them all. Colour only what the checker marked, in its colours (red trap, amber wait, purple loop, grey orphan, blue leak), so the page and the terminal say the same thing.
+The page is the script's, not yours: `report` writes the same HTML every run from the table and the judgement file, see [report.md](report.md). The cards live on the page; the chat message carries the path to the page and one line per failing path. Colour only what the checker marked, in its colours (red trap, amber wait, purple loop, grey orphan, blue leak), so the page and the terminal say the same thing.

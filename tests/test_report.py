@@ -117,6 +117,28 @@ class ReportFromTheJudgement(unittest.TestCase):
         self.assertIn('<p class="pickline">Pick: <b>a, then b</b></p>', html)
         self.assertIn("<li>Each row names a file:line.</li><li>The rollback path was not seen in practice.</li>", html)
 
+    def test_what_the_reader_sees_in_each_wait_is_a_column_when_the_judgement_gives_it(self):
+        seen = json.loads(json.dumps(JUDGEMENT))
+        seen["waits"] = {"awaiting_approval": "Waiting for your approval"}
+        code, html, err = run(["report", DEPLOY], seen)
+        self.assertEqual(code, 0, err)
+        self.assertIn("<thead><tr><th>State</th><th>What the reader sees</th><th>Waits on</th><th>Owner told</th><th>Timeout</th></tr></thead>", html)
+        self.assertIn('<tr><td><span class="st w">awaiting_approval</span></td><td>Waiting for your approval</td><td>approver</td><td>approver</td>', html)
+        # a wait the judgement says nothing about keeps the column, empty
+        self.assertIn('<tr><td><span class="st w">building</span></td><td></td><td>ci</td>', html)
+
+    def test_without_the_waits_field_the_column_is_absent(self):
+        code, html, err = run(["report", DEPLOY], JUDGEMENT)
+        self.assertNotIn("What the reader sees", html)
+        self.assertIn("<thead><tr><th>State</th><th>Waits on</th><th>Owner told</th><th>Timeout</th></tr></thead>", html)
+
+    def test_a_waits_field_that_is_not_a_map_of_strings_is_refused(self):
+        bad = json.loads(json.dumps(JUDGEMENT))
+        bad["waits"] = ["Refused"]
+        code, html, err = run(["report", DEPLOY], bad)
+        self.assertEqual(code, 2)
+        self.assertIn("'waits' must be a map of state name to what the reader sees", err)
+
     def test_an_unknown_strength_is_refused(self):
         bad = json.loads(json.dumps(JUDGEMENT))
         bad["cards"][0]["options"][0]["strength"] = "Certain"

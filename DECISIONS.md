@@ -51,9 +51,9 @@ A cycle that still exists after bounded edges are removed is a loop nothing coun
 
 Alternative: enumerate every elementary cycle. Exact but exponential, and the output would repeat the same bound across many cycles.
 
-## Report: terminal first, HTML at four or more findings
+## Report: terminal first, HTML at four or more findings (superseded, see below)
 
-Terminal Markdown is the default because the common case is one to three paths and a diagram, and the diagram is the model. An HTML report follows the pattern of a cards-and-badges review and is only worth a file when there are enough cards to scroll.
+Terminal Markdown was the default because the common case is one to three paths and a diagram. The HTML page was only written at four or more findings. Reversed on 2026-10-14: the page is written on every run.
 
 ## Not decided here
 
@@ -118,3 +118,9 @@ The `npx skills` CLI finds a skill at the repo root or under fixed folders such 
 The HTML report used to be described in one paragraph and written fresh by the agent each run, so no two pages looked alike. Now `report` fills a shipped template (`assets/report.html`) from the table, and a small judgement JSON carries the parts that need an agent: the example the reader saw, the fix cards with a pick, the trust notes. The template loads only Mermaid and the fonts, uses colour tokens with a dark theme, and reads at phone width.
 
 Alternatives: keep the page in prose (rejected: the owner saw one page and wants that page every time); put the judgement inside the table file (rejected: the table is the model and should stay checkable without opinions in it).
+
+## The page is written on every run (2026-10-14)
+
+The four-findings threshold is gone. Every run ends with `report`: an interactive run writes the page to a temp directory, opens it and says the path; a worker run writes it to the caller's folder. The chat message is the path and one line per failing path. The owner saw the page and reads it before the terminal, so a threshold only decided when to withhold the thing he wanted.
+
+The judgement file gained one optional field, `waits`, a map of state name to what the reader sees in that state. Given, the waits table shows a "What the reader sees" column. The table cannot carry it: what a reader sees is a reading of the view, not a fact of the graph.

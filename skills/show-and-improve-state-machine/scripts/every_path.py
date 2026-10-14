@@ -603,6 +603,9 @@ def load_judgement(path: Optional[str]) -> dict:
     seen = data.get("seen")
     if seen is not None and not isinstance(seen, dict):
         raise JudgementError("'seen' must be an object with title, lines, state and text")
+    waits = data.get("waits")
+    if waits is not None and (not isinstance(waits, dict) or not all(isinstance(v, str) for v in waits.values())):
+        raise JudgementError("'waits' must be a map of state name to what the reader sees in that state")
     return data
 
 
@@ -664,11 +667,13 @@ def region_states(finding: Finding) -> List[str]:
     return [x.strip() for x in inside.split(",") if x.strip()]
 
 
-def wait_rows(table: Table, results: List[Result], marked: Dict[str, str]) -> str:
+def wait_rows(table: Table, results: List[Result], marked: Dict[str, str], seen_as: Dict[str, str]) -> str:
+    """One row per failing wait. When the judgement says what the reader sees in a state, that is a column too."""
     good = can_reach_end(table)
     rows = []
     for finding in next(r for r in results if r.check == "waits-owned").findings:
         state = finding.state
+        seen_cell = f"<td>{esc(seen_as.get(state, ''))}</td>" if seen_as else ""
         movers = sorted({e.actor for e in table.out[state] if not e.timeout})
         owner = wait_owner(table, state)
         timeouts = [e for e in table.out[state] if e.timeout]
@@ -682,7 +687,7 @@ def wait_rows(table: Table, results: List[Result], marked: Dict[str, str]) -> st
         else:
             timeout_cell = '<td class="no">none</td>'
         owner_cell = f"<td>{esc(owner)}</td>" if owner else '<td class="no">no</td>'
-        rows.append(f"<tr><td>{chip(state, marked, table)}</td><td>{esc(', '.join(movers))}</td>{owner_cell}{timeout_cell}</tr>")
+        rows.append(f"<tr><td>{chip(state, marked, table)}</td>{seen_cell}<td>{esc(', '.join(movers))}</td>{owner_cell}{timeout_cell}</tr>")
     return "\n      ".join(rows)
 
 
@@ -763,10 +768,12 @@ def build_report(table: Table, results: List[Result], judgement: dict, short_lab
     trust += [esc(x) for x in judgement.get("trust") or []]
     waits_html = ""
     if waits:
+        seen_as = judgement.get("waits") or {}
+        seen_head = "<th>What the reader sees</th>" if seen_as else ""
         waits_html = (f'<section>\n  <h2>The {len(waits)} {plural(len(waits), "wait", "waits")}</h2>\n  <p>Each state waits on a person or an outside system. '
                       'Owner told is who the code tells when the state is entered. Timeout is the way out when nobody acts.</p>\n  <div class="tbl"><table>\n'
-                      '    <thead><tr><th>State</th><th>Waits on</th><th>Owner told</th><th>Timeout</th></tr></thead>\n    <tbody>\n      '
-                      + wait_rows(table, results, marked) + "\n    </tbody>\n  </table></div>\n</section>")
+                      f'    <thead><tr><th>State</th>{seen_head}<th>Waits on</th><th>Owner told</th><th>Timeout</th></tr></thead>\n    <tbody>\n      '
+                      + wait_rows(table, results, marked, seen_as) + "\n    </tbody>\n  </table></div>\n</section>")
     title = judgement.get("title") or table.name
     verdict = f"{len(failed)} of {len(results)} checks fail." if failed else "Every path ends."
     default_lede = f"The {table.name} process as one table of states and transitions, drawn and checked. {verdict}"
