@@ -30,7 +30,9 @@
   --loop:#c3a6f5; --loop-bg:#2a2140; --chat:#232a36; color-scheme:dark}
 html{background:var(--bg)}
 body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.55 var(--body)}
-.wrap{max-width:860px;margin:0 auto;padding-block:40px 64px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:grid;gap:44px}
+.wrap{max-width:860px;margin:0 auto;padding-block:40px 64px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:grid;grid-template-columns:minmax(0,1fr);gap:44px}
+.wrap>*{min-width:0}
+.region{overflow-wrap:anywhere}
 h1,h2,h3{font-family:var(--display);text-wrap:balance;margin:0;line-height:1.15}
 h1{font-size:2.2rem}
 h2{font-size:1.45rem;padding-bottom:8px;border-bottom:1px solid var(--rule)}
