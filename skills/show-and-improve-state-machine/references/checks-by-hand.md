@@ -13,11 +13,11 @@ For a session that cannot run `scripts/every_path.py`, because there is no inter
 
 | Check | What to walk | Which edges count | The line |
 |---|---|---|---|
-| `reachable` | the forward walk | all | `nothing leads to S, so it cannot be reached from the start`, for each non-end state the walk did not reach |
-| `ends-reachable` | the forward walk | all | `nothing leads to end state S, so it cannot be reached from the start` |
+| `reachable` | the forward walk | all | `nothing leads to S, so no path from the start reaches it`, for each non-end state the walk did not reach |
+| `ends-reachable` | the forward walk | all | `nothing leads to end state S, so no path from the start reaches it` |
 | `ends-closed` | each end's rows | all | `end state S has a way out, S --e--> T, so it is not an end` |
 | `exit` | each non-end state's rows | all | `S is not an end state and has no transition out of it`, with its path |
-| `can-end` | the ends-reach set | all | `S can be reached but no end can be reached from it.` for each reachable non-end state outside the set, then one of three endings. `It has no way out.` when S has no exit, and S is then also an `exit` finding. `It loops within {the states that reach each other} and no end follows.` when S is in a cycle. `Everything after it is trapped too: {what a walk from S reaches}.` otherwise |
+| `can-end` | the ends-reach set | all | `S is reachable, but no end is reachable from it.` for each reachable non-end state outside the set, then one of three endings. `It has no way out.` when S has no exit, and S is then also an `exit` finding. `It loops within {the states that reach each other} and no end follows.` when S is in a cycle. `Everything after it is trapped too: {what a walk from S reaches}.` otherwise |
 | `waits-owned` | each reachable non-end state | movers are the exits with no `timeout` | see below |
 | `loops-bounded` | the non-end states and the rows with no `bound` | rows between non-end states only | see below |
 
@@ -29,7 +29,7 @@ A state waits when it has at least one mover and every mover's actor is `human` 
 - Timeout. An exit with `timeout` whose target is in the ends-reach set. When there is none and the state has `open_ended`, write a note instead: `open-ended: S waits on A (kind) with no timeout because <reason>`. When there is none but some timeout exits exist, the finding says `no timeout that reaches an end, because e leads to T and no end follows from there`. When there is none at all, it says `no timeout`.
 - The line: `S waits on a (kind), b (kind) and has <what is missing, joined with " and ">`, then its path.
 - A state that does not wait, whose `system` movers all carry a guard, gets a note: `guarded: the system moves S on only under a guard, e [guard] or f [guard]. If a guard needs an outside party to act, that party is the actor and the state is a wait`.
-- The count line under the FAIL header: `N waits: a with no owner, b with no timeout`.
+- The count line under the FAIL header is `N waits: a with no owner, b with no timeout`, or `1 wait: ...`.
 
 ### loops-bounded
 

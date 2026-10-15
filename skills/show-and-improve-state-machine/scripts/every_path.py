@@ -176,15 +176,15 @@ def check_exit(table: Table, paths: Dict[str, List[Edge]]) -> Result:
 
 
 def check_reachable(table: Table, paths: Dict[str, List[Edge]]) -> Result:
-    findings = [Finding(s, f"nothing leads to {s}, so it cannot be reached from the start", None)
+    findings = [Finding(s, f"nothing leads to {s}, so no path from the start reaches it", None)
                 for s in table.states if s not in paths and not table.is_end(s)]
-    return Result("reachable", "every state that is not an end can be reached from the start", findings)
+    return Result("reachable", "every state that is not an end is reachable from the start", findings)
 
 
 def check_ends_reachable(table: Table, paths: Dict[str, List[Edge]]) -> Result:
-    findings = [Finding(s, f"nothing leads to end state {s}, so it cannot be reached from the start", None)
+    findings = [Finding(s, f"nothing leads to end state {s}, so no path from the start reaches it", None)
                 for s in table.ends if s not in paths]
-    return Result("ends-reachable", "every declared end can be reached from the start", findings)
+    return Result("ends-reachable", "every declared end is reachable from the start", findings)
 
 
 def check_ends_closed(table: Table, paths: Dict[str, List[Edge]]) -> Result:
@@ -231,7 +231,7 @@ def check_can_end(table: Table, paths: Dict[str, List[Edge]]) -> Result:
         else:
             after = sorted(trapped_after(table, state, trapped), key=table.states.index)
             what = f"Everything after it is trapped too: {{{', '.join(after)}}}."
-        findings.append(Finding(state, f"{state} can be reached but no end can be reached from it. {what}", paths[state]))
+        findings.append(Finding(state, f"{state} is reachable, but no end is reachable from it. {what}", paths[state]))
     return Result("can-end", "from every reachable state some end is still reachable", findings)
 
 
@@ -319,7 +319,7 @@ def check_waits_owned(table: Table, paths: Dict[str, List[Edge]]) -> Result:
             findings.append(Finding(state, f"{state} waits on {waits_on} and has {' and '.join(missing)}", paths[state]))
     no_owner = sum(1 for f in findings if "no owner" in f.detail)
     no_timeout = sum(1 for f in findings if "no timeout" in f.detail)
-    summary = f"{len(findings)} waits: {no_owner} with no owner, {no_timeout} with no timeout"
+    summary = f"{len(findings)} {plural(len(findings), 'wait', 'waits')}: {no_owner} with no owner, {no_timeout} with no timeout"
     return Result("waits-owned", "every reachable wait has an owner and a timeout that reaches an end, "
                   "or a written reason to be open-ended", findings, notes, summary)
 
@@ -660,11 +660,11 @@ def plain_words(table: Table, result: Result, marked: Dict[str, str]) -> str:
     states = [f.state for f in result.findings]
     n = len(states)
     if result.check == "reachable":
-        return (f"Every state that is not an end can be reached from {esc(', '.join(table.initials))}." if result.passed
+        return (f"Every state that is not an end is reachable from {esc(', '.join(table.initials))}." if result.passed
                 else f"Nothing leads to {chips(states)}.")
     if result.check == "ends-reachable":
         return (f"Each of the {len(table.ends)} ends can happen." if result.passed
-                else f"{chips(states)} {plural(n, 'is', 'are')} declared an end and can never happen.")
+                else f"{chips(states)} {plural(n, 'is an end that', 'are ends that')} can never happen.")
     if result.check == "ends-closed":
         return ("No end moves on again." if result.passed
                 else f"{chips(states)} {plural(n, 'moves', 'move')} on again, so {plural(n, 'it is', 'they are')} not an end.")
@@ -685,9 +685,9 @@ def plain_words(table: Table, result: Result, marked: Dict[str, str]) -> str:
         if result.passed:
             return "Every loop that avoids the ends has a bound."
         sizes = [len(region_states(f)) for f in result.findings]
-        if n == 1:
-            return f"1 loop region covers {sizes[0]} states. Nothing counts the rounds."
-        return f"{n} loop regions cover {', '.join(str(x) for x in sizes)} states. Nothing counts the rounds."
+        sizes = [f"{x} {plural(x, 'state', 'states')}" for x in sizes]
+        listed = sizes[0] if n == 1 else f"{', '.join(sizes[:-1])} and {sizes[-1]}"
+        return f"{n} {plural(n, 'loop region', 'loop regions')}, with {listed}. Nothing counts the rounds."
     return result.title
 
 
@@ -731,10 +731,10 @@ def loops_section(table: Table, results: List[Result], marked: Dict[str, str]) -
         cycle = finding.detail.split("no bounded edge: ", 1)[1].split(". Nothing counts", 1)[0]
         closing = finding.detail.split("Closing edges: ", 1)[1] if "Closing edges: " in finding.detail else ""
         blocks.append(
-            f'<div class="region"><div>{len(states)} states: {" ".join(chip(x, marked, table) for x in states)}</div>'
+            f'<div class="region"><div>{len(states)} {plural(len(states), "state", "states")}: {" ".join(chip(x, marked, table) for x in states)}</div>'
             f"<div>Example: <code>{esc(cycle)}</code></div>"
             f'<div class="edges">A bound on each of these closing edges breaks every loop here: {esc(closing)}</div></div>')
-    return ('<section>\n  <h2>Loops nothing counts</h2>\n  <p>A loop that avoids every end goes round until something counts the rounds. '
+    return ('<section>\n  <h2>Loops nothing counts</h2>\n  <p>A loop that avoids every end goes round forever unless something counts the rounds. '
             'Each region below is one such loop, with the edges that close it.</p>\n  <div class="regions">' + "".join(blocks) + "</div>\n</section>")
 
 
@@ -767,7 +767,7 @@ def cards_section(cards: List[dict]) -> str:
         pick = f'<p class="pickline">Pick: <b>{esc(card["pick"])}</b></p>' if card.get("pick") else ""
         articles.append(f'<article class="card"><header><span class="id">{esc(card["id"])}</span><h3>{esc(card["title"])}</h3></header>'
                         f'<p>{esc(card["problem"])}</p><ul class="opts">{"".join(items)}</ul>{pick}</article>')
-    return ('<section>\n  <h2>Ways to close each gap</h2>\n  <p>For each failing path, several fixes, each with a strength. Strong means the code or a '
+    return ('<section>\n  <h2>Ways to close each gap</h2>\n  <p>Each failing path gets several fixes, each with a strength. Strong means the code or a '
             'document already points to it. Worth exploring means someone must confirm who acts or how long to wait. Speculative changes what the '
             'process means. The highlighted line is the pick. Nothing has changed yet.</p>\n  <div class="cards">\n' + "\n".join(articles) + "\n  </div>\n</section>")
 
@@ -793,26 +793,26 @@ def build_report(table: Table, results: List[Result], judgement: dict, short_lab
         target, sources, timeout = next(iter(shared.values()))
         note += f" After {esc(timeout)}, {len(sources)} states go to {esc(target)}. One arrow stands for all of them here."
     with_evidence = sum(1 for e in table.edges if e.evidence and e.evidence != ["assumed"])
-    trust = [f"The table is a reading of the code. {with_evidence} of {len(table.edges)} rows name a file:line, so each one can be checked.",
-             "The checks are the machine's. Every number and line above the cards comes from the table alone."]
+    trust = [f"The table is a reading of the code. {with_evidence} of {len(table.edges)} rows name a file:line, so a reader can check each one.",
+             "The script runs the checks. Every number and line above the cards comes from the table alone."]
     trust += [esc(x) for x in judgement.get("trust") or []]
     waits_html = ""
     if waits:
         seen_as = judgement.get("waits") or {}
         seen_head = "<th>What the reader sees</th>" if seen_as else ""
-        waits_html = (f'<section>\n  <h2>The {len(waits)} {plural(len(waits), "wait", "waits")}</h2>\n  <p>Each state waits on a person or an outside system. '
-                      'Owner told is who the code tells when the state is entered. Timeout is the way out when nobody acts.</p>\n  <div class="tbl"><table>\n'
+        waits_html = (f'<section>\n  <h2>{"The wait" if len(waits) == 1 else f"The {len(waits)} waits"}</h2>\n  <p>Each state waits on a person or an outside system. '
+                      'Owner told is who the code tells when the process enters the state. Timeout is the way out when nobody acts.</p>\n  <div class="tbl"><table>\n'
                       f'    <thead><tr><th>State</th>{seen_head}<th>Waits on</th><th>Owner told</th><th>Timeout</th></tr></thead>\n    <tbody>\n      '
                       + wait_rows(table, results, marked, seen_as) + "\n    </tbody>\n  </table></div>\n</section>")
     title = judgement.get("title") or table.name
-    verdict = f"{len(failed)} of {len(results)} checks fail." if failed else "Every path ends."
-    default_lede = f"The {table.name} process as one table of states and transitions, drawn and checked. {verdict}"
+    verdict = f"{len(failed)} of {len(results)} checks {plural(len(failed), 'fails', 'fail')}." if failed else "Every path ends."
+    default_lede = f"One table models the {table.name} process. {verdict}"
     fields = {
         "title": esc(title),
-        "description": esc(judgement.get("lede") or f"Every path of {table.name}, checked."),
+        "description": esc(judgement.get("lede") or f"Checks every path of {table.name}."),
         "eyebrow": esc(f"{SKILL_NAME} · {judgement['eyebrow']}" if judgement.get("eyebrow") else f"{SKILL_NAME} · report"),
         "lede": esc(judgement.get("lede") or default_lede),
-        "source": esc(judgement.get("source") or f"{len(table.states)} states and {len(table.edges)} transitions from the table, checked and drawn by the same script."),
+        "source": esc(judgement.get("source") or f"The same script checked and drew the {len(table.states)} states and {len(table.edges)} transitions in the table."),
         "n_states": str(len(table.states)), "n_transitions": str(len(table.edges)), "n_ends": str(len(table.ends)),
         "n_failed": str(len(failed)), "n_checks": str(len(results)), "failed_class": "bad" if failed else "",
         "n_waits": str(len(waits)), "waits_class": "bad" if waits else "",

@@ -109,7 +109,7 @@ class NoPassLineIsFalse(unittest.TestCase):
         ]))
         self.assertIn("FAIL exit", out)
         self.assertIn("FAIL can-end", out)
-        self.assertIn("cancelled can be reached but no end can be reached from it. It has no way out.", out)
+        self.assertIn("cancelled is reachable, but no end is reachable from it. It has no way out.", out)
         self.assertNotIn("PASS can-end", out)
 
     def test_the_reachable_sentence_says_it_leaves_the_ends_to_ends_reachable(self):
@@ -117,7 +117,7 @@ class NoPassLineIsFalse(unittest.TestCase):
             ("placed", "pay", "paid", "customer"),
             ("paid", "deliver", "delivered", "carrier"),
         ], ends=("delivered", "refunded")))
-        self.assertIn("PASS reachable: every state that is not an end can be reached from the start", out)
+        self.assertIn("PASS reachable: every state that is not an end is reachable from the start", out)
         self.assertIn("FAIL ends-reachable", out)
 
     def test_the_waits_sentence_admits_open_ended_waits(self):
@@ -154,8 +154,8 @@ class TrapRegions(unittest.TestCase):
             ("paid", "lose", "lost", "carrier"),
         ]
         code, out = check(table(flow))
-        self.assertIn("cancelled can be reached but no end can be reached from it. It has no way out.", out)
-        self.assertIn("lost can be reached but no end can be reached from it. It has no way out.", out)
+        self.assertIn("cancelled is reachable, but no end is reachable from it. It has no way out.", out)
+        self.assertIn("lost is reachable, but no end is reachable from it. It has no way out.", out)
         self.assertNotIn("trapped with", out)
 
     def test_states_that_only_lead_to_each_other_are_one_region(self):
@@ -167,7 +167,7 @@ class TrapRegions(unittest.TestCase):
             ("refused_again", "refuse", "refused", "system"),
         ]
         code, out = check(table(flow, initial="filed", ends=("merged",)))
-        self.assertIn("refused can be reached but no end can be reached from it. It loops within {refused, refused_again} and no end follows.", out)
+        self.assertIn("refused is reachable, but no end is reachable from it. It loops within {refused, refused_again} and no end follows.", out)
 
     def test_a_state_whose_every_way_out_is_trapped_names_what_follows(self):
         flow = [
@@ -177,8 +177,8 @@ class TrapRegions(unittest.TestCase):
             ("failed", "notify", "notified", "system"),
         ]
         code, out = check(table(flow, initial="filed", ends=("done",)))
-        self.assertIn("failed can be reached but no end can be reached from it. Everything after it is trapped too: {notified}.", out)
-        self.assertIn("notified can be reached but no end can be reached from it. It has no way out.", out)
+        self.assertIn("failed is reachable, but no end is reachable from it. Everything after it is trapped too: {notified}.", out)
+        self.assertIn("notified is reachable, but no end is reachable from it. It has no way out.", out)
 
 
 class ReachabilityChecks(unittest.TestCase):

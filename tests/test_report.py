@@ -67,11 +67,11 @@ class ReportFromTheTable(unittest.TestCase):
         self.assertIn('<span class="eyebrow">Checks failed</span><b>5 / 7</b>', html)
         self.assertIn('<span class="eyebrow">Waits with no end</span><b>2</b>', html)
         # one line per check, plain words
-        self.assertIn('<span class="tag p">PASS</span><div><span class="n">reachable</span><p>Every state that is not an end can be reached from requested.</p>', html)
+        self.assertIn('<span class="tag p">PASS</span><div><span class="n">reachable</span><p>Every state that is not an end is reachable from requested.</p>', html)
         self.assertIn('<span class="tag f">FAIL</span><div><span class="n">exit</span><p><span class="st t">refused</span> is not an end and has no way out.</p>', html)
-        self.assertIn('<span class="n">ends-reachable</span><p><span class="st e">abandoned</span> is declared an end and can never happen.</p>', html)
+        self.assertIn('<span class="n">ends-reachable</span><p><span class="st e">abandoned</span> is an end that can never happen.</p>', html)
         self.assertIn('<span class="n">waits-owned</span><p>2 states wait on someone. 2 have no timeout that leads to an end, and 1 has no owner who is told.</p>', html)
-        self.assertIn('<span class="n">loops-bounded</span><p>1 loop region covers 5 states. Nothing counts the rounds.</p>', html)
+        self.assertIn('<span class="n">loops-bounded</span><p>1 loop region, with 5 states. Nothing counts the rounds.</p>', html)
         # the diagram, from the same table
         self.assertIn('<pre class="mermaid">\nstateDiagram-v2', html)
         self.assertIn("class refused trap", html)
@@ -153,6 +153,28 @@ class ReportFromTheJudgement(unittest.TestCase):
         code, html, err = run(["report", DEPLOY], hot)
         self.assertNotIn("<script>alert", html)
         self.assertIn("&lt;script&gt;alert(1)&lt;/script&gt;", html)
+
+    def test_two_loop_regions_name_the_size_of_each(self):
+        data = {
+            "name": "refund", "initial": "paying", "ends": ["refunded"],
+            "actors": {"system": "system"},
+            "transitions": [
+                {"from": "paying", "on": "fail", "to": "paying", "actor": "system"},
+                {"from": "paying", "on": "cancel", "to": "refunding", "actor": "system"},
+                {"from": "refunding", "on": "fail", "to": "refund_failed", "actor": "system"},
+                {"from": "refund_failed", "on": "retry", "to": "refunding", "actor": "system"},
+                {"from": "refunding", "on": "done", "to": "refunded", "actor": "system"},
+            ],
+        }
+        handle = tempfile.NamedTemporaryFile("w", suffix=".json", delete=False)
+        json.dump(data, handle)
+        handle.close()
+        code, html, err = run(["report", handle.name])
+        os.unlink(handle.name)
+        self.assertEqual(code, 0, err)
+        self.assertIn("<p>2 loop regions, with 2 states and 1 state. Nothing counts the rounds.</p>", html)
+        self.assertIn('<div class="region"><div>1 state: ', html)
+        self.assertIn('<div class="region"><div>2 states: ', html)
 
 
 class DiagramOptions(unittest.TestCase):
