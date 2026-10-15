@@ -1,6 +1,6 @@
 # The transition table
 
-One JSON file per process. JSON, because every language reads it with nothing installed, and the checker is standard-library Python.
+One JSON file per process. It is JSON because every language reads it with nothing installed, and the checker is standard-library Python.
 
 ```json
 {
@@ -34,7 +34,7 @@ One JSON file per process. JSON, because every language reads it with nothing in
 
 | Field | Meaning |
 |---|---|
-| `owner` | the person the code tells when the state is entered, by a mail, a queue they read or a digest. That person is accountable for ending the wait. Left out, a `human` mover is the owner. Write `null` to say that nobody is told, whoever could act. Required when only `external` actors move the state |
+| `owner` | the person the code tells when the process enters the state, by a mail, a queue they read or a digest. That person is accountable for ending the wait. Without it, a `human` mover is the owner. Write `null` to say that nobody is told, whoever could act. Required when only `external` actors move the state |
 | `open_ended` | a reason this wait may last with no timeout. The checker lists it as a note instead of failing. A string, or a map with `reason`, `kind` and `evidence`, where `kind` is `code`, `timer`, `recipe`, `schedule` or `document`. The report then shows what the reason rests on, a timer in code or an agent following words in a recipe |
 | `note` | anything a reader needs, such as the field values that make up a composite state |
 
@@ -52,7 +52,7 @@ One JSON file per process. JSON, because every language reads it with nothing in
 | `evidence` | no, but write it | `path:line`, `path:start-end` or `path#heading`, as a string or a list |
 | `note` | no | anything else |
 
-The states are the names that appear in `initial`, `ends`, `states` and the rows. There is no separate list to keep in step.
+The states are the names that appear in `initial`, `ends`, `states` and the rows, with no separate list to keep in step.
 
 ## Names
 

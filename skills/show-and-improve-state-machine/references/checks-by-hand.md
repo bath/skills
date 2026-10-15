@@ -1,13 +1,13 @@
 # The seven checks by hand
 
-For a session that cannot run `scripts/every_path.py`, because there is no interpreter or the command was denied. The checks are small graph walks. Do them on paper in this order and write the output in the script's shape. Put `HAND-CHECKED, NOT CHECKER OUTPUT.` on the first line, say why the script did not run, and say that the next session with an interpreter should rerun it and replace the file.
+Use this file when a session cannot run `scripts/every_path.py`, because there is no interpreter or the user denied the command. The checks are small graph walks. Do them on paper in this order and write the output in the script's shape. Put `HAND-CHECKED, NOT CHECKER OUTPUT.` on the first line, say why the script did not run, and say that the next session with an interpreter should rerun it and replace the file.
 
 ## Before the checks
 
 - The states are every name in `initial`, `ends`, `states` and the rows, in order of first appearance. Keep that order. The script walks and prints in it.
 - A row is usable when `from`, `on`, `to` and `actor` are non-empty strings, the actor is in `actors`, and each actor's kind is `system`, `human` or `external`.
-- Paths come from a breadth-first walk over the rows in table order, started from every initial state in the order they are listed. The first time the walk reaches a state, its path is fixed. Every finding prints that path, in the form `(start) a --e1--> b ; b --e2--> c`. An initial state's own path is `(start) S`, with its own name.
-- The ends-reach set: start from the ends and walk the rows backwards. Every state you touch can still reach an end.
+- Walk breadth-first over the rows in table order, starting from every initial state in listed order. The first path that reaches a state is its path. Every finding prints that path, in the form `(start) a --e1--> b ; b --e2--> c`. An initial state's own path is `(start) S`, with its own name.
+- To build the ends-reach set, start from the ends and walk the rows backwards. Every state you touch can still reach an end.
 
 ## The checks, in print order
 

@@ -1,12 +1,21 @@
 # The report page
 
-One self-contained HTML file, the same shape every run. The checker writes it at the end of every run:
+At the end of every run the checker writes one self-contained HTML file, the same shape each time:
 
 ```
 python3 <skill dir>/scripts/every_path.py report process.json --judgement judgement.json --out report.html [--short-labels]
 ```
 
-The script fills everything that comes from the table. The summary numbers. Each check with PASS or FAIL and a plain-words line. The diagram, with short labels on request, and with a timeout that three or more states share drawn once. The waits table, with state, waits on, owner told and timeout. The loop regions. A trust note on how many rows carry evidence. Without `--out` the page goes to standard output. The template is `assets/report.html`, and the only things it loads from outside are Mermaid and the fonts. It reads at phone width and follows the system's light or dark theme.
+The script fills everything that comes from the table:
+
+- the summary numbers
+- each check with PASS or FAIL and a plain-words line
+- the diagram, with short labels on request, and one arrow for a timeout that three or more states share
+- the waits table, with state, waits on, owner told and timeout
+- the loop regions
+- a trust note on how many rows carry evidence
+
+Without `--out` the page goes to standard output. The template is `assets/report.html`. The only thing it loads from outside is one pinned, hash-checked Mermaid file. It reads at phone width and follows the system's light or dark theme.
 
 ## The judgement file
 
@@ -48,9 +57,9 @@ The parts that need judgement are yours to write, in one JSON file. Every field 
 
 | Field | Meaning |
 |---|---|
-| `title`, `eyebrow`, `lede`, `source` | the page's head. The script appends `eyebrow` to the skill's name. Left out, the script writes them from the table |
+| `title`, `eyebrow`, `lede`, `source` | the page's head. The script appends `eyebrow` to the skill's name. When they are missing, the script writes them from the table |
 | `seen` | an example the reader met: the lines of a message or a row, the state it is in, and what the model says. The page draws `lines[0]` bold |
-| `waits` | state name to what the reader sees in that state, such as "Refused (your card)". Given, the waits table gets a "What the reader sees" column, and a wait left out gets an empty cell |
+| `waits` | state name to what the reader sees in that state, such as "Refused (your card)". With it, the waits table gets a "What the reader sees" column, and a wait left out gets an empty cell |
 | `cards` | one per failing path, in the order to read them. `strength` is `Strong`, `Worth exploring` or `Speculative`, as options.md defines them. `picked` lists the option keys to highlight, and `pick` is the line under the card |
 | `trust` | notes on how far to trust the page: what was not seen in practice, what a hand check differed on. The script adds its own two lines first |
 
@@ -58,4 +67,4 @@ The script escapes text on the way in, so write plain sentences, not HTML.
 
 ## Where the page goes
 
-In an interactive run, write the page to a temp directory from `mktemp -d`, open it with `open` on macOS or `xdg-open` on Linux, and say the path in the chat. In a worker run, write the judgement file beside the table, run `report` with `--out` into the caller's folder, and name the path in the reply. Either way the chat message is short: the path, then one line per path with no end.
+SKILL.md step 5 says where the page goes. In a worker run, keep the judgement file beside the table.
