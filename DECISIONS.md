@@ -9,13 +9,13 @@ The skill's name is the property it proves, so a user who types it knows what th
 Alternatives considered:
 - `lifecycle-proof` is shorter, but "proof" overstates what a graph check does.
 - `prove-the-process-ends` says the same, longer, verb-first like `show-me`.
-- `fsm-audit` is accurate, but "FSM" is a word for people who already know, and the skill is meant to trigger on "where does this get stuck".
+- `fsm-audit` is accurate, but "FSM" means something only to people who know the term, and the skill is meant to trigger on "where does this get stuck".
 
 Reversing it means renaming the directory and the `name` field. The script and the tests have no dependency on the name.
 
 ## Table format: JSON
 
-JSON, because Python's standard library reads it and so does every other language's. A user on any stack can write the table and run the checker with nothing installed.
+Python's standard library reads JSON, and so does every other language's. A user on any stack can write the table and run the checker with nothing installed.
 
 Alternatives:
 - YAML is easier to write by hand, with comments. It needs PyYAML, which is not in the standard library, so the checker would stop being zero-install.
@@ -25,40 +25,38 @@ Reversing it is one function. `Table.__init__` takes a dict, so add a YAML branc
 
 ## Checker language: Python 3.9 standard library
 
-Python, because macOS ships 3.9.6 and most Linux hosts have it, and the standard library has JSON, a deque and argument handling. The script stays on 3.9 syntax, with no `match` and no `X | Y` types at runtime, so the shipped interpreter runs it.
+macOS ships Python 3.9.6, most Linux hosts have it, and its standard library has JSON, a deque and argument handling. The script stays on 3.9 syntax, with no `match` and no `X | Y` types at runtime, so the shipped interpreter runs it.
 
 Alternatives:
 - Node with no dependencies. Node 24 is on the build machine, but a stock macOS or Linux box does not ship it. Skill users in a JavaScript-only shop would prefer it.
-- Both. Twice the tests and twice the drift.
+- Both, which doubles the tests and the drift.
 
 Reversing it is a morning's work. The checks are seven small graph functions, and the tests run the script as a subprocess and read its output, so they would carry over.
 
 ## Actor kinds: system, human, external
 
-Three kinds, because the waits check needs to know who can be held to a wait. A `human` inside the process owns the wait by default. An `external` party cannot own it, so the state must name an `owner`.
+The waits check needs to know who can be held to a wait, so there are three kinds. A `human` inside the process owns the wait by default. An `external` party cannot own it, so the state must name an `owner`.
 
-The alternative was two kinds, system and other, with an explicit `owner` on every wait. A simpler table, but then every human step needs an owner line that repeats the actor.
+The alternative was two kinds, system and other, with an explicit `owner` on every wait. The table is simpler, but every human step then needs an owner line that repeats the actor.
 
 ## A timeout is required on every wait, with `open_ended` as the escape
 
 The handoff asked for an owner and a timeout edge on every wait. A strict rule makes most real tables fail on their human steps. That is correct, since a ticket in `new` with no SLA timer is unowned work, but it is noisy. The escape is a per-state `open_ended` reason, which the checker lists as a note rather than a failure. Writing the reason is the point. The agent has to say why the wait may last.
 
-The alternative was to fail only on `external` waits and warn on `human` ones. Quieter, but then the handoff's second real failure, work that waits on a person for hours, would print as a warning that a CI run ignores.
+The alternative was to fail only on `external` waits and warn on `human` ones. That is quieter, but the handoff's second real failure, work that waits on a person for hours, would then print as a warning that a CI run ignores.
 
 ## Loop check: remove bounded edges, look for a cycle among non-end states
 
-A cycle that still exists after the bounded edges are removed is a loop nothing counts. This is the precise form of "every cycle carries a bound". One bounded edge per cycle suffices, which is also what code does with one counter on the retry.
+A cycle that still exists after the bounded edges are removed is a loop nothing counts. This is the precise form of "every cycle carries a bound". One bounded edge per cycle is enough, which is also what code does with one counter on the retry.
 
-The alternative was to enumerate every elementary cycle. Exact but exponential, and the output would repeat the same bound across many cycles.
+The alternative was to enumerate every elementary cycle. That is exact but exponential, and the output would repeat the same bound across many cycles.
 
 ## Report: terminal first, HTML at four or more findings, superseded below
 
-Terminal Markdown was the default because the common case is one to three paths and a diagram. The HTML page was only written at four or more findings. Reversed on 2026-10-14. The page is written on every run.
+Terminal Markdown was the default because the common case is one to three paths and a diagram. The script wrote the HTML page only at four or more findings. The owner reversed this on 2026-10-14, and every run now writes the page.
 
 ## Not decided here
 
-- The licence of the published skill. Nothing in the repo carried one at first.
-- The publish target, a personal GitHub or a company skills repo, and how skills.sh lists it. Not verified.
 - Whether the skill is model-invoked or user-invoked. It has a description, so it is model-invoked. The description costs context every turn. If it misfires, set `disable-model-invocation: true` and strip the trigger list.
 
 ## Added after the first dogfood run, 2026-10-14
@@ -67,17 +65,17 @@ Terminal Markdown was the default because the common case is one to three paths 
 
 The first checker printed the first cycle it found, one per run. The dogfood table had 29. Now `loops-bounded` prints one finding per strongly connected region of non-end states, after the bounded edges are removed, with one example cycle and the list of edges a depth-first walk finds pointing back into the region. A bound on each closing edge breaks every loop in the region, and the agent groups them by meaning.
 
-The alternative was to enumerate every elementary cycle. Exact, exponential in the worst case, and the dogfood table shows why not. The same re-sling edge would appear in most of the 29.
+The alternative was to enumerate every elementary cycle. That is exact but exponential in the worst case, and the dogfood table shows the cost. The same retry edge would appear in most of the 29.
 
 ### `"owner": null` says that nobody is told
 
 The checker used to take a human mover as the owner of a wait without question. The dogfood found a state, a pull request whose check never completes, where the person who could act is never told it is stuck. Now `owner` means the person the code tells. A human mover is still the default, and an explicit `null` records that nobody is told, which fails the check.
 
-The alternative was to require a declared owner on every wait. Honest, but it makes the agent repeat the actor on every human step.
+The alternative was to require a declared owner on every wait. That is more explicit, but it makes the agent repeat the actor on every human step.
 
 ### The checker notes a state the system leaves only under guards
 
-A `system` edge with a guard that only an outside party can satisfy hides a wait. The checker cannot read the guard, so it prints a `guarded:` note for every state whose system exits are all guarded, and the extraction reference says how to re-attribute the edge. The alternative was a warning that fails the run. Too many honest system edges carry a guard.
+A `system` edge with a guard that only an outside party can satisfy hides a wait. The checker cannot read the guard, so it prints a `guarded:` note for every state whose system exits are all guarded, and the extraction reference says how to re-attribute the edge. The alternative was a warning that fails the run, but many system edges carry a guard for good reason.
 
 ## Added after the second dogfood run, the card view, 2026-10-14
 
@@ -91,7 +89,7 @@ The alternative was a separate check, "timeout leads to a trap". It would print 
 
 An open-ended reason that rests on recipe text, an agent following words, is weaker than one that rests on a timer in code. The string form stays. The map form adds `kind`, one of code, timer, recipe, schedule or document, and `evidence`, and the note and the table view print them.
 
-The alternative was a top-level `evidence_kind` on every row. Heavier, and the row's `evidence` path already says what it is for a transition. The distinction only matters for a wait that is excused.
+The alternative was a top-level `evidence_kind` on every row. That is heavier, and the row's `evidence` path already says what it is for a transition. The distinction only matters for a wait that is excused.
 
 ### Hand checks are a reference file, not a mode of the script
 
@@ -103,7 +101,7 @@ A session that cannot run the script applies `references/checks-by-hand.md` and 
 
 The audit of the other six sentences changed two. `reachable` now says "every state that is not an end", because an orphan end is `ends-reachable`'s finding. `waits-owned` now says "every reachable wait ... or a written reason to be open-ended", because an unreachable wait is `reachable`'s and an excused wait is a note. `ends-reachable`, `ends-closed`, `exit` and `loops-bounded` test what they say.
 
-The alternative for `can-end` was to keep the skip and weaken the sentence to "every reachable state that has a way out". Rejected. A reader then needs two lines to know whether anything is trapped, and the first dogfood run showed that one green line is what gets read.
+The alternative for `can-end` was to keep the skip and weaken the sentence to "every reachable state that has a way out". That lost, because a reader then needs two lines to know whether anything is trapped, and the first dogfood run showed that readers stop at one green line.
 
 ## Renamed to `show-and-improve-state-machine`, 2026-10-14
 
@@ -111,29 +109,29 @@ The working name was `every-path-ends`, the property the checker proves. The pub
 
 ## Laid out as a catalog, `skills/<name>/`, 2026-10-14
 
-The `npx skills` CLI finds a skill at the repo root or under fixed folders such as `skills/<name>/SKILL.md`. The future public repo is a catalog, `bath/skills`, so the skill moved to `skills/show-and-improve-state-machine/`, and the tests, evals, README, DECISIONS.md and LICENSE stay at the root. The licence is MIT, in the frontmatter and in `LICENSE`, copyright Miller Bath 2026. The alternative, one repo per skill, was not taken. The owner wants more skills in one place.
+The `npx skills` CLI finds a skill at the repo root or under fixed folders such as `skills/<name>/SKILL.md`. The public repo is a catalog, `bath/skills`, so the skill moved to `skills/show-and-improve-state-machine/`, and the tests, evals, README, DECISIONS.md and LICENSE stay at the root. The licence is MIT, in the frontmatter and in `LICENSE`, copyright Miller Bath 2026. The alternative, one repo per skill, was not taken. The owner wants more skills in one place.
 
 ## The report page is the script's, 2026-10-14
 
-The HTML report used to be described in one paragraph, and the agent wrote it fresh each run, so no two pages looked alike. Now `report` fills a shipped template, `assets/report.html`, from the table, and a small judgement JSON carries the parts that need an agent: the example the reader saw, the fix cards with a pick, the trust notes. The template loads only Mermaid and the fonts, uses colour tokens with a dark theme, and reads at phone width.
+SKILL.md used to describe the HTML report in one paragraph, and the agent wrote it fresh each run, so no two pages looked alike. Now `report` fills a shipped template, `assets/report.html`, from the table, and a small judgement JSON carries the parts that need an agent: the example the reader saw, the fix cards with a pick, the trust notes. The template loads only Mermaid and the fonts, uses colour tokens with a dark theme, and reads at phone width.
 
-Two alternatives were rejected. Keeping the page in prose, because the owner saw one page and wants that page every time. Putting the judgement inside the table file, because the table is the model and should stay checkable without opinions in it.
+Keeping the page in prose lost, because the owner saw one page and wants that page every time. Putting the judgement inside the table file lost too, because the table is the model and should stay checkable without opinions in it.
 
 ## The page is written on every run, 2026-10-14
 
 The four-findings threshold is gone. Every run ends with `report`. An interactive run writes the page to a temp directory, opens it and says the path. A worker run writes it to the caller's folder. The chat message is the path and one line per failing path. The owner saw the page and reads it before the terminal, so a threshold only decided when to withhold the thing he wanted.
 
-The judgement file gained one optional field, `waits`, a map of state name to what the reader sees in that state. Given, the waits table shows a "What the reader sees" column. The table cannot carry it. What a reader sees is a reading of the view, not a fact of the graph.
+The judgement file gained one optional field, `waits`, a map of state name to what the reader sees in that state. When it is present, the waits table shows a "What the reader sees" column. The table cannot carry it. What a reader sees is a reading of the view, not a fact of the graph.
 
-## A clock that ends the wait covers a missing owner (2026-10-14)
+## A clock that ends the wait covers a missing owner, 2026-10-14
 
 Two test runs had to overrule the checker on the same point. A wait that nobody is told about, but that a timeout takes to an end, failed `waits-owned` for "no owner". The runs marked those states low severity by hand, because the path has a known end. Now such a wait passes, with a note that says nobody is told and which clock ends it. A missing owner fails only when no clock reaches an end from the state.
 
-The reason for the rule is what the owner is for. The owner is the person who ends a wait that would otherwise last. When a clock ends it, there is no such person to name. The note stays, because a reader may still want someone told before the clock runs out.
+The rule follows from what an owner is for. The owner is the person who ends a wait that would otherwise last. When a clock ends it, there is no such person to name. The note stays, because a reader may still want someone told before the clock runs out.
 
 The alternative was to keep the failure and let the agent mark the state open-ended. That puts a false reason in the table, since the wait is not open-ended at all.
 
-## A trap finding names its own region (2026-10-14)
+## A trap finding names its own region, 2026-10-14
 
 `can-end` used to list every trapped state in one set, so two dead ends that had nothing to do with each other read as if they formed a cycle together. Now each finding ends in one of three ways. A dead end has no way out. A state in a cycle loops within its own region, which is the set of states that reach each other. A state whose every way out leads into a trap names what follows it. Two unrelated dead ends are two findings, and neither names the other.
 

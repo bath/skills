@@ -18,4 +18,4 @@ The tests for every skill run from the root:
 python3 -m unittest discover -s tests
 ```
 
-[`DECISIONS.md`](DECISIONS.md) records the defaults each skill was built with and how to reverse them. The licence is MIT, see [`LICENSE`](LICENSE).
+[`DECISIONS.md`](DECISIONS.md) records the defaults behind each skill and how to reverse them. The [`LICENSE`](LICENSE) is MIT.

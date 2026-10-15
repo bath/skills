@@ -10,13 +10,13 @@
     {
       "id": 2,
       "prompt": "Our orders sometimes sit in 'awaiting_payment' for weeks and nobody notices. Can you map the order status flow in src/orders/ and tell me where it can get stuck?",
-      "expected_output": "A table whose waits name an owner and a timeout; the report names awaiting_payment as a wait with no timeout (or no owner) and offers a timeout edge and an owner as options.",
+      "expected_output": "A table whose waits name an owner and a timeout. The report names awaiting_payment as a wait with no timeout or no owner, and offers a timeout edge and an owner as options.",
       "files": []
     },
     {
       "id": 3,
       "prompt": "Draw me a state diagram of the deploy pipeline in .github/workflows and deploy.sh.",
-      "expected_output": "A Mermaid stateDiagram-v2 generated from a table, not drawn by hand, with the checker run and any trap or unbounded retry named under the diagram.",
+      "expected_output": "A Mermaid stateDiagram-v2 that the script generated from a table, with the checker run and any trap or unbounded retry named under the diagram.",
       "files": []
     }
   ]
