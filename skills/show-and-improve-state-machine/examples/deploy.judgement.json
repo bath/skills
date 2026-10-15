@@ -1,0 +1,81 @@
+{
+  "title": "Deploy pipeline check",
+  "eyebrow": "example",
+  "lede": "A small deploy pipeline, modelled from its workflow file and deploy script. Five of the seven checks fail. A failed build stops for good, nobody owns the approval, and a bad deploy can roll back and retry forever.",
+  "source": "An invented pipeline that ships with the skill as examples/deploy.json. The file:line evidence points at files that do not exist. The cards and picks are written by hand.",
+  "seen": {
+    "title": "The message you saw",
+    "lines": ["Deploy #318", "Build started", "Build failed"],
+    "state": "refused",
+    "text": [
+      "No edge leaves refused, so the deploy stays there. Nobody is told, and nothing asks for a new build.",
+      "The pipeline declares abandoned as an end, but no edge leads to it. The one way a deploy could stop on purpose does not exist."
+    ]
+  },
+  "waits": {
+    "building": "Build started",
+    "awaiting_approval": "Waiting for approval"
+  },
+  "cards": [
+    {
+      "id": "F1",
+      "title": "A failed build is a trap",
+      "problem": "building goes to refused on a red build (pipeline.yml:34), and nothing leaves refused.",
+      "options": [
+        {"key": "a", "text": "Tell the engineer, and abandon the deploy after 7 days with no new build.", "strength": "Strong"},
+        {"key": "b", "text": "Let the engineer retry from refused, with at most 3 retries.", "strength": "Worth exploring"},
+        {"key": "c", "text": "Make refused an end. A new build is a new deploy.", "strength": "Speculative"}
+      ],
+      "pick": "a. It also gives abandoned its first edge.",
+      "picked": ["a"]
+    },
+    {
+      "id": "F2",
+      "title": "abandoned can never happen",
+      "problem": "abandoned is in the ends, but no transition leads to it.",
+      "options": [
+        {"key": "a", "text": "Wire it from refused and from a stale approval, as F1 and F3 propose.", "strength": "Strong"},
+        {"key": "b", "text": "Remove abandoned from the ends.", "strength": "Worth exploring"}
+      ],
+      "pick": "a",
+      "picked": ["a"]
+    },
+    {
+      "id": "F3",
+      "title": "The approval waits on nobody in particular",
+      "problem": "awaiting_approval ends only when an approver clicks (pipeline.yml:41). Nothing names who, and nothing times out.",
+      "options": [
+        {"key": "a", "text": "Name the on-call approver as the owner and send them the request.", "strength": "Strong"},
+        {"key": "b", "text": "Abandon the deploy after 24 hours with no answer.", "strength": "Strong"},
+        {"key": "c", "text": "Approve automatically when the build is green.", "strength": "Speculative"}
+      ],
+      "pick": "a, then b",
+      "picked": ["a", "b"]
+    },
+    {
+      "id": "F4",
+      "title": "A build can hang with nobody watching",
+      "problem": "building waits on CI, which has no owner and no timeout.",
+      "options": [
+        {"key": "a", "text": "Fail the build after 30 minutes and tell the engineer.", "strength": "Strong"},
+        {"key": "b", "text": "Show the build's age on the deploy page.", "strength": "Speculative"}
+      ],
+      "pick": "a",
+      "picked": ["a"]
+    },
+    {
+      "id": "F5",
+      "title": "Rollback and retry can loop forever",
+      "problem": "rolling_back returns to requested (deploy.sh:110), which builds and deploys again. Nothing counts the rounds.",
+      "options": [
+        {"key": "a", "text": "Count the rollbacks, and abandon the deploy after the second one.", "strength": "Strong"},
+        {"key": "b", "text": "Send a rolled-back deploy to refused instead of requested.", "strength": "Worth exploring"}
+      ],
+      "pick": "a",
+      "picked": ["a"]
+    }
+  ],
+  "trust": [
+    "This pipeline is invented to show the page. Run the skill on your own code to get a table with real evidence."
+  ]
+}

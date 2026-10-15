@@ -10,6 +10,8 @@ This skill turns a process into one transition table with evidence, runs a check
 
 A process that looks finished can hide four defects: a state nothing can leave, a wait that nobody owns and nothing times out, a loop that nothing counts, and an end state that nothing reaches. The checker finds all four and prints the path to each one. The diagram, the checks and the page all come from the table, so the diagram always shows what the checker checked.
 
+![An example report page](https://raw.githubusercontent.com/bath/skills/main/docs/images/report-summary-and-checks.png)
+
 ## Steps
 
 ### 1. Find the lifecycle
@@ -91,4 +93,4 @@ When several instances or actors interleave, say an item taken back while its pu
 
 ## Examples
 
-[examples/order.json](examples/order.json) passes. [examples/support-ticket.json](examples/support-ticket.json) waits on a customer with no owner and loops without a bound. [examples/deploy.json](examples/deploy.json) traps a refused build and waits on an approver with no timeout. Run `check` on each to see the report shape.
+[examples/order.json](examples/order.json) passes. [examples/support-ticket.json](examples/support-ticket.json) waits on a customer with no owner and loops without a bound. [examples/deploy.json](examples/deploy.json) traps a refused build and waits on an approver with no timeout. Run `check` on each to see what the checker prints. To see the full page, run `report` on `examples/deploy.json` with `--judgement examples/deploy.judgement.json`.

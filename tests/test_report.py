@@ -233,5 +233,22 @@ class DiagramOptions(unittest.TestCase):
         self.assertEqual(out.count("--> expired"), 2, out)
 
 
+
+class ShippedExamplePage(unittest.TestCase):
+    """The page the README shows is the one the shipped example builds."""
+
+    def test_the_deploy_example_builds_the_page_in_the_readme(self):
+        judgement = os.path.join(SKILL, "examples", "deploy.judgement.json")
+        proc = subprocess.run([sys.executable, "-I", SCRIPT, "report", DEPLOY, "--judgement", judgement],
+                              capture_output=True, text=True)
+        self.assertEqual(proc.returncode, 0, proc.stderr)
+        html = proc.stdout
+        self.assertIn("Deploy pipeline check", html)
+        self.assertIn("The message you saw", html)
+        for card in ("F1", "F2", "F3", "F4", "F5"):
+            self.assertIn(card, html)
+        self.assertIn("What the reader sees", html)
+
+
 if __name__ == "__main__":
     unittest.main()
