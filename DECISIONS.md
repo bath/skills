@@ -39,7 +39,7 @@ The waits check needs to know who can be held to a wait, so there are three kind
 
 The alternative was two kinds, system and other, with an explicit `owner` on every wait. The table is simpler, but every human step then needs an owner line that repeats the actor.
 
-## A timeout is required on every wait, with `open_ended` as the escape
+## Every wait needs a timeout, with `open_ended` as the escape
 
 The handoff asked for an owner and a timeout edge on every wait. A strict rule makes most real tables fail on their human steps. That is correct, since a ticket in `new` with no SLA timer is unowned work, but it is noisy. The escape is a per-state `open_ended` reason, which the checker lists as a note rather than a failure. Writing the reason is the point. The agent has to say why the wait may last.
 
@@ -47,7 +47,7 @@ The alternative was to fail only on `external` waits and warn on `human` ones. T
 
 ## Loop check: remove bounded edges, look for a cycle among non-end states
 
-A cycle that still exists after the bounded edges are removed is a loop nothing counts. This is the precise form of "every cycle carries a bound". One bounded edge per cycle is enough, which is also what code does with one counter on the retry.
+A cycle that survives the removal of the bounded edges is a loop nothing counts. This is the precise form of "every cycle carries a bound". One bounded edge per cycle is enough, which is also what code does with one counter on the retry.
 
 The alternative was to enumerate every elementary cycle. That is exact but exponential, and the output would repeat the same bound across many cycles.
 
@@ -63,7 +63,7 @@ Terminal Markdown was the default because the common case is one to three paths 
 
 ### A loop finding is one per region, with its closing edges
 
-The first checker printed the first cycle it found, one per run. The dogfood table had 29. Now `loops-bounded` prints one finding per strongly connected region of non-end states, after the bounded edges are removed, with one example cycle and the list of edges a depth-first walk finds pointing back into the region. A bound on each closing edge breaks every loop in the region, and the agent groups them by meaning.
+The first checker printed the first cycle it found, one per run. The dogfood table had 29. Now `loops-bounded` prints one finding per strongly connected region of non-end states, minus the bounded edges, with one example cycle and the list of edges a depth-first walk finds pointing back into the region. A bound on each closing edge breaks every loop in the region, and the agent groups them by meaning.
 
 The alternative was to enumerate every elementary cycle. That is exact but exponential in the worst case, and the dogfood table shows the cost. The same retry edge would appear in most of the 29.
 

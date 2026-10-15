@@ -16,7 +16,7 @@ Look in this order and keep going until nothing new appears.
 
 Code often writes a status and then does a second step. It marks the request approved, then creates the invite. It sets `sending`, then calls the provider, then sets `sent`. The window between the first write and the second step is a state, because the process can die there and the second step can fail there. The row then shows the first value forever, and nothing moves it.
 
-Look for every writer that is followed by a send, a call to an outside service, or a second write, and ask what the row looks like if the process stops between the two. Give that window a state of its own, such as `invite_sending` or `approved_unsent`, with the crash or the failure as the edge into it. Then look for the way out: a job that retries, a job that sweeps old rows, or a person who is told. If there is none, the checker reports a trap, and that trap is real. These windows are easy to miss because the code around them looks finished, so read for them on purpose.
+Look for every writer followed by a send, a call to an outside service, or a second write, and ask what the row looks like if the process stops between the two. Give that window a state of its own, such as `invite_sending` or `approved_unsent`, with the crash or the failure as the edge into it. Then look for the way out: a job that retries, a job that sweeps old rows, or a person who is told. If there is none, the checker reports a trap, and that trap is real. These windows are easy to miss because the code around them looks finished, so read for them on purpose.
 
 The actor on the edge into the window is the process itself when it dies, and the outside service when the call fails. Both are `external`. Nothing can rely on either.
 
